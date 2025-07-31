@@ -73,7 +73,8 @@ def desktop_forecast_model(historical_data, historical_dates, forecast_dates):
         future["cap"] = cap
         future["floor"] = floor
     else:
-        observed["y"] = np.log(observed["y"] + 1)
+        with np.errstate(invalid="ignore"):
+            observed["y"] = np.log(observed["y"] + 1.0)
 
     np.random.seed(42)
     m = prophet.Prophet(**params)
