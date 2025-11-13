@@ -67,8 +67,7 @@ class DesktopBugs(holidays.HolidayBase):
 
 class IranInternetBlackout(holidays.HolidayBase):
     """
-    Custom holiday calendar for Mozilla-specific historical Data Loss incidents.
-    Currently includes Data Loss events in May and July 2019.
+    Custom holiday calendar for Iran-specific historical Data Loss incidents.
     """
 
     def _populate(self, year):
@@ -77,6 +76,16 @@ class IranInternetBlackout(holidays.HolidayBase):
             # Internet Blackout June 18-27, 2025
             for day in range(18, 28):
                 self[datetime(2025, 6, day).date()] = "Data Loss"
+
+
+class CanadianHolidays(holidays.HolidayBase):
+    """
+    Custom holiday for Canadian holidays, which aren't always accounted for properly by default.
+    """
+
+    def _populate(self, year):
+        # Fixed-date holiday
+        self[pd.Timestamp(year=year, month=11, day=11)] = "Remembrance Day"
 
 
 def get_calendar(
@@ -116,6 +125,9 @@ def get_calendar(
     # Include country-specific additional holidays
     if country == "IR":
         country_holidays += IranInternetBlackout(years=holiday_years)
+
+    if country == "CA":
+        country_holidays += CanadianHolidays(years=holiday_years)
 
     # Add any additional user-specified holidays
     for i in additional_holidays:
