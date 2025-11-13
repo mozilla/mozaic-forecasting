@@ -37,7 +37,7 @@ def populate_tiles(
     forecast_model,
     forecast_start_date,
     forecast_end_date,
-    additional_holidays: [],
+    additional_holidays: List[Type[holidays.HolidayBase]] = [],
 ):
     for metric, dataset in datasets.items():
         print("\n" + metric)
