@@ -52,6 +52,19 @@ class MozillaHolidays(holidays.HolidayBase):
                 self[datetime(2019, 7, day).date()] = "Data Loss"
 
 
+class DesktopBugs(holidays.HolidayBase):
+    """
+    Custom holiday calendar for Desktop-specific metric-impacting bugs.
+    """
+
+    def _populate(self, year):
+        if year == 2025:
+            # Incident: 2025-10-08 Legacy Telemetry Drop in 143.0.4
+            # https://docs.google.com/document/d/1_qKP4LUNKfmatCR4OQxuBYJxMZXrvIixBqIcQcmKKws
+            for day in pd.date_range("2025-10-04", "2025-10-31"):
+                self[day.date()] = "Legacy Telemetry Drop in 143.0.4"
+
+
 class IranInternetBlackout(holidays.HolidayBase):
     """
     Custom holiday calendar for Mozilla-specific historical Data Loss incidents.
@@ -69,7 +82,7 @@ class IranInternetBlackout(holidays.HolidayBase):
 def get_calendar(
     country: str,
     holiday_years: list,
-    include_paschal_cycle: bool = False,
+    exclude_paschal_cycle: list = NO_PASCHAL_CYCLE,
     split_concurrent_holidays: bool = False,
     additional_holidays: list = field(default_factory=list),
 ) -> pd.DataFrame:
@@ -79,7 +92,7 @@ def get_calendar(
     Args:
         country (str): Country code (e.g., "US", "FR", "ROW").
         holiday_years (list): List of years to include holidays from.
-        include_paschal_cycle (list): A list of countries that aren't impacted by the Paschal Cycle.
+        exclude_paschal_cycle (list): A list of countries that aren't impacted by the Paschal Cycle.
         split_concurrent_holidays (bool): Whether to split semicolon-delimited holidays into multiple rows.
 
     Returns:
@@ -93,14 +106,14 @@ def get_calendar(
         country_holidays = getattr(holidays, country)(years=holiday_years)
 
     # Optionally add Paschal cycle holidays
-    if include_paschal_cycle:
+    if country not in exclude_paschal_cycle:
         country_holidays += PaschalCycleHolidays(years=holiday_years)
 
     # Include Mozilla-specific holidays for 2019
     if 2019 in holiday_years:
         country_holidays += MozillaHolidays(years=holiday_years)
 
-    # Use US holidays as a default for ROW (Rest of World)
+    # Include country-specific additional holidays
     if country == "IR":
         country_holidays += IranInternetBlackout(years=holiday_years)
 

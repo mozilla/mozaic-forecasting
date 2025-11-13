@@ -21,7 +21,6 @@ class Tile:
     raw_historical_data: pd.Series
 
     additional_holidays: List[Type[holidays.HolidayBase]] = field(default_factory=list)
-    include_paschal_cycle: bool = True
     threshold: float = -0.05
     max_radius: int = 5
     min_radius: int = 3
@@ -43,7 +42,6 @@ class Tile:
         self.holiday_calendar = get_calendar(
             country=self.country,
             holiday_years=self.historical_dates.dt.year.unique(),
-            include_paschal_cycle=self.include_paschal_cycle,
             split_concurrent_holidays=False,
             additional_holidays=self.additional_holidays,
         )

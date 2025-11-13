@@ -1,5 +1,9 @@
+import holidays
 import numpy as np
 import pandas as pd
+
+from dataclasses import field
+from typing import List, Type
 
 from mozaic import Mozaic, Tile
 
@@ -28,7 +32,12 @@ def mozaic_divide(numerator, denominator):
 
 
 def populate_tiles(
-    datasets, tileset, forecast_model, forecast_start_date, forecast_end_date
+    datasets,
+    tileset,
+    forecast_model,
+    forecast_start_date,
+    forecast_end_date,
+    additional_holidays: List[Type[holidays.HolidayBase]] = field(default_factory=list),
 ):
     for metric, dataset in datasets.items():
         print("\n" + metric)
@@ -71,6 +80,7 @@ def populate_tiles(
                             forecast_model=forecast_model,
                             historical_dates=df["x"],
                             raw_historical_data=df[population],
+                            additional_holidays=additional_holidays,
                         )
                     )
 
