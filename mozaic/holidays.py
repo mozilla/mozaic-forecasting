@@ -147,6 +147,7 @@ def get_calendar(
         r"Day off \(substituted.*", "day off (substituted)", regex=True
     )
     df["holiday"] = df["holiday"].str.replace(" (observed)", "", regex=False)
+    df["holiday"] = df["holiday"].str.replace(" (estimated)", "", regex=False)
 
     # Split concurrent holidays into separate rows if requested
     if split_concurrent_holidays:
