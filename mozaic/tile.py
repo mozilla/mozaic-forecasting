@@ -33,6 +33,11 @@ class Tile:
         self.forecast_dates = pd.date_range(
             self.forecast_start_date, self.forecast_end_date
         )
+        self.calendar_years = list(
+            pd.date_range(
+                self.historical_dates.min(), self.forecast_end_date
+            ).year.unique()
+        )
 
         self._set_holiday_calendar()
         self._detrend_holidays()
@@ -41,7 +46,7 @@ class Tile:
     def _set_holiday_calendar(self):
         self.holiday_calendar = get_calendar(
             country=self.country,
-            holiday_years=self.historical_dates.dt.year.unique(),
+            holiday_years=self.calendar_years,
             split_concurrent_holidays=False,
             additional_holidays=self.additional_holidays,
         )
