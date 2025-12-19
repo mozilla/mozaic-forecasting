@@ -1,11 +1,11 @@
-import holidays
+import holiday_smart
 import numpy as np
 import pandas as pd
 
 from dataclasses import dataclass, field
 from typing import Any, List, Type
 
-from mozaic.holidays import get_calendar, detrend
+from mozaic.holiday_smart import get_calendar, detrend
 
 
 @dataclass
