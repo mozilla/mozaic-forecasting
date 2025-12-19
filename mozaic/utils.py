@@ -83,6 +83,7 @@ def populate_tiles(
                             additional_holidays=additional_holidays,
                         )
                     )
+        print()
 
 
 def curate_mozaics(
