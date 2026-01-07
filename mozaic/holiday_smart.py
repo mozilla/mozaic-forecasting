@@ -5,7 +5,7 @@ import pandas as pd
 from dataclasses import field
 from datetime import datetime
 from dateutil.easter import easter
-from typing import Optional
+from typing import Optional, List, Type
 
 NO_PASCHAL_CYCLE = ["IN", "JP", "IR", "CN"]
 
@@ -93,7 +93,7 @@ def get_calendar(
     holiday_years: list,
     exclude_paschal_cycle: list = NO_PASCHAL_CYCLE,
     split_concurrent_holidays: bool = False,
-    additional_holidays: list = field(default_factory=list),
+    additional_holidays: Optional[List[Type[holidays.HolidayBase]]] = None,
 ) -> pd.DataFrame:
     """
     Generate a cleaned and formatted DataFrame of holidays for a specific country.
@@ -130,8 +130,9 @@ def get_calendar(
         country_holidays += CanadianHolidays(years=holiday_years)
 
     # Add any additional user-specified holidays
-    for i in additional_holidays:
-        country_holidays += i(years=holiday_years)
+    if additional_holidays:
+        for i in additional_holidays:
+            country_holidays += i(years=holiday_years)
 
     # Convert holiday dictionary into DataFrame
     df = pd.DataFrame(
