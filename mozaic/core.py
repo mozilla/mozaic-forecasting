@@ -76,7 +76,6 @@ class Mozaic:
                 self.holiday_detrended_historical_data.replace({0: np.nan}),
                 self.historical_dates,
                 self.forecast_dates,
-                #print_summary=True
             )
         )
         self.trend = self._prophet_forecast.trend
