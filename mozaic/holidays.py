@@ -14,8 +14,8 @@ class PaschalCycleHolidays(holidays.HolidayBase):
     """
     Custom holiday calendar for key Christian holidays, mostly related to the
     Paschal cycle. Includes Mardi Gras, Palm Sunday, Good Friday, Easter,
-    Ascension Day, Corpus Christi. Also includes All Saints' Day, which is not
-    part of the Paschal Cycle.
+    Ascension Day, Corpus Christi. Also includes Christian holidays like
+    All Saints' Day and Epiphany, which is not part of the Paschal Cycle.
     """
 
     def _populate(self, year):
@@ -30,7 +30,8 @@ class PaschalCycleHolidays(holidays.HolidayBase):
         self[easter_sunday + pd.Timedelta(days=39)] = "Ascension Day"
         self[easter_sunday + pd.Timedelta(days=60)] = "Corpus Christi"
 
-        # Fixed-date holiday
+        # Fixed-date holidays
+        self[pd.Timestamp(year=year, month=1, day=6)] = "Epiphany"
         self[pd.Timestamp(year=year, month=11, day=1)] = "All Saints' Day"
 
 
