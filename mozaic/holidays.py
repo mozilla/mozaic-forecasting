@@ -74,11 +74,11 @@ class IranInternetBlackout(holidays.HolidayBase):
         if year == 2025:
             # Internet Blackout June 18-27, 2025
             for day in range(18, 28):
-                self[datetime(2025, 6, day).date()] = "Data Loss"
+                self[datetime(2025, 6, day).date()] = "Blackout"
         if year == 2026:
             # Internet Blackout January 8-23, 2026
             for day in range(8, 23):
-                self[datetime(2026, 1, day).date()] = "Data Loss"
+                self[datetime(2026, 1, day).date()] = "Blackout"
 
 
 class CanadianHolidays(holidays.HolidayBase):
