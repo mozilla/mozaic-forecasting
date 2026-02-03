@@ -10,7 +10,7 @@ from typing import Optional
 NO_PASCHAL_CYCLE = ["IN", "JP", "IR", "CN"]
 
 
-class PaschalCycleHolidays(holidays.HolidayBase):
+class ChristianHolidays(holidays.HolidayBase):
     """
     Custom holiday calendar for key Christian holidays, mostly related to the
     Paschal cycle. Includes Mardi Gras, Palm Sunday, Good Friday, Easter,
@@ -30,8 +30,9 @@ class PaschalCycleHolidays(holidays.HolidayBase):
         self[easter_sunday + pd.Timedelta(days=39)] = "Ascension Day"
         self[easter_sunday + pd.Timedelta(days=60)] = "Corpus Christi"
 
-        # Fixed-date holiday
+        # Fixed-date holidays
         self[pd.Timestamp(year=year, month=11, day=1)] = "All Saints' Day"
+        self[pd.Timestamp(year=year, month=1, day=6)] = "Epiphany"
 
 
 class MozillaHolidays(holidays.HolidayBase):
@@ -65,9 +66,30 @@ class DesktopBugs(holidays.HolidayBase):
                 self[day.date()] = "Legacy Telemetry Drop in 143.0.4"
 
 
-class IranInternetBlackout(holidays.HolidayBase):
+class CanadaHolidays(holidays.HolidayBase):
     """
-    Custom holiday calendar for Iran-specific historical Data Loss incidents.
+    Custom holiday class for Canada holidays.
+    """
+
+    def _populate(self, year):
+        # Fixed-date holidays
+        self[pd.Timestamp(year=year, month=11, day=11)] = "Remembrance Day"
+
+
+class IndiaHolidays(holidays.HolidayBase):
+    """
+    Custom holiday for India holidays.
+    """
+
+    def _populate(self, year):
+        # Fixed-date holidays
+        self[pd.Timestamp(year=year, month=1, day=15)] = "Army Day"
+        self[pd.Timestamp(year=year, month=1, day=23)] = "Parakram Diwas"
+
+
+class IranHolidays(holidays.HolidayBase):
+    """
+    Custom holiday calendar for Iran holidays.
     """
 
     def _populate(self, year):
@@ -79,16 +101,6 @@ class IranInternetBlackout(holidays.HolidayBase):
             # Internet Blackout January 8-23, 2026
             for day in range(8, 23):
                 self[datetime(2026, 1, day).date()] = "Blackout"
-
-
-class CanadianHolidays(holidays.HolidayBase):
-    """
-    Custom holiday for Canadian holidays, which aren't always accounted for properly by default.
-    """
-
-    def _populate(self, year):
-        # Fixed-date holiday
-        self[pd.Timestamp(year=year, month=11, day=11)] = "Remembrance Day"
 
 
 def get_calendar(
@@ -119,18 +131,21 @@ def get_calendar(
 
     # Optionally add Paschal cycle holidays
     if country not in exclude_paschal_cycle:
-        country_holidays += PaschalCycleHolidays(years=holiday_years)
+        country_holidays += ChristianHolidays(years=holiday_years)
 
     # Include Mozilla-specific holidays for 2019
     if 2019 in holiday_years:
         country_holidays += MozillaHolidays(years=holiday_years)
 
     # Include country-specific additional holidays
-    if country == "IR":
-        country_holidays += IranInternetBlackout(years=holiday_years)
-
     if country == "CA":
-        country_holidays += CanadianHolidays(years=holiday_years)
+        country_holidays += CanadaHolidays(years=holiday_years)
+
+    if country == "IN":
+        country_holidays += IndiaHolidays(years=holiday_years)
+
+    if country == "IR":
+        country_holidays += IranHolidays(years=holiday_years)
 
     # Add any additional user-specified holidays
     for i in additional_holidays:
