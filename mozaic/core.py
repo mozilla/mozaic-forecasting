@@ -245,8 +245,10 @@ class Mozaic:
 
         # add day-of-week scaling
         df["dow"] = df["date"].dt.dayofweek
+        mask = df["average_effect"] != 0
         self.dow_scale = (
-            df.groupby("dow")["average_effect"].mean() / df["average_effect"].mean()
+            df.loc[mask].groupby("dow")["average_effect"].mean()
+            / df.loc[mask]["average_effect"].mean()
         )
         df["average_effect_dow_scaled"] = df["average_effect"] * df["dow"].map(
             self.dow_scale
