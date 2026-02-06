@@ -245,11 +245,11 @@ class Mozaic:
 
         # add day-of-week scaling
         df["dow"] = df["date"].dt.dayofweek
-        dow_scale = (
+        self.dow_scale = (
             df.groupby("dow")["average_effect"].mean() / df["average_effect"].mean()
         )
         df["average_effect_dow_scaled"] = df["average_effect"] * df["dow"].map(
-            dow_scale
+            self.dow_scale
         )
 
         self.proportional_holiday_effects = (
