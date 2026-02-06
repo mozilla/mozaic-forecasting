@@ -70,7 +70,12 @@ class ChristianHolidays(holidays.HolidayBase):
 
     def _populate(self, year: int) -> None:
         # Choose Easter computus
-        easter_sunday = easter(year, method=EASTER_ORTHODOX if self.orthodox else None)
+        if self.orthodox:
+            easter_sunday = easter(year, method=EASTER_ORTHODOX)
+            shift = pd.Timedelta(days=self.fixed_shift_days)
+        else:
+            easter_sunday = easter(year)
+            shift = pd.Timedelta(days=0)
 
         # Paschal cycle (relative to Easter/Pascha)
         self[easter_sunday - pd.Timedelta(days=47)] = "Mardi Gras"
@@ -81,7 +86,6 @@ class ChristianHolidays(holidays.HolidayBase):
         self[easter_sunday + pd.Timedelta(days=60)] = "Corpus Christi"
 
         # Fixed-date feasts (optionally shifted, e.g., Julian -> Gregorian)
-        shift = pd.Timedelta(days=self.fixed_shift_days)
         self[pd.Timestamp(year=year, month=8, day=15) + shift] = "Assumption of Mary"
         self[pd.Timestamp(year=year, month=11, day=1) + shift] = "All Saints' Day"
         self[pd.Timestamp(year=year, month=1, day=6) + shift] = "Epiphany"
