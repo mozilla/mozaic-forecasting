@@ -241,31 +241,6 @@ class Mozaic:
         df = df[~df["holiday"].str.contains("Data Loss", na=False)].copy()
         unmatched = df[df["average_effect"].isna()]["holiday"].unique()
 
-    def _predict_holiday_effects(self):
-        """
-        Compute proportional holiday effect per forecast date (unitless).
-        These are stored as a time-indexed Series and not yet applied to forecasts.
-        """
-
-        # Cross-join forecast dates and holiday dates
-        df = pd.merge(
-            pd.DataFrame({"date": self.forecast_dates}),
-            self.holiday_calendar.rename(columns={"submission_date": "holiday_date"}),
-            how="cross",
-        )
-
-        df["date_diff"] = (df["date"] - df["holiday_date"]).dt.days
-        df = df[df["date_diff"].between(-7, 7)]
-        df = df.assign(holiday=df["holiday"].str.split("; ")).explode("holiday")
-
-        df = df.merge(
-            self.observed_holiday_effects, how="left", on=["holiday", "date_diff"]
-        )
-
-        # Exclude system holidays like "Data Loss"
-        df = df[~df["holiday"].str.contains("Data Loss", na=False)].copy()
-        unmatched = df[df["average_effect"].isna()]["holiday"].unique()
-
         # --- simple inline DOW scaling computed from history ---
         # build a tiny historical merged table like _fit_holiday_effects but local
         hist = pd.DataFrame(
