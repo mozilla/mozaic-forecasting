@@ -4,35 +4,10 @@ import pandas as pd
 
 from dataclasses import field
 from datetime import datetime
-from dateutil.easter import easter
+from dateutil.easter import easter, EASTER_ORTHODOX
 from typing import Optional
 
 NO_PASCHAL_CYCLE = ["IN", "JP", "IR", "CN"]
-
-
-class ChristianHolidays(holidays.HolidayBase):
-    """
-    Custom holiday calendar for key Christian holidays, mostly related to the
-    Paschal cycle. Includes Mardi Gras, Palm Sunday, Good Friday, Easter,
-    Ascension Day, Corpus Christi. Also includes All Saints' Day, which is not
-    part of the Paschal Cycle.
-    """
-
-    def _populate(self, year):
-        # Get Easter Sunday for the given year
-        easter_sunday = easter(year)
-
-        # Add pre- and post-Easter holidays
-        self[easter_sunday - pd.Timedelta(days=47)] = "Mardi Gras"
-        self[easter_sunday - pd.Timedelta(days=7)] = "Palm Sunday"
-        self[easter_sunday - pd.Timedelta(days=2)] = "Good Friday"
-        self[easter_sunday] = "Easter Sunday"
-        self[easter_sunday + pd.Timedelta(days=39)] = "Ascension Day"
-        self[easter_sunday + pd.Timedelta(days=60)] = "Corpus Christi"
-
-        # Fixed-date holidays
-        self[pd.Timestamp(year=year, month=11, day=1)] = "All Saints' Day"
-        self[pd.Timestamp(year=year, month=1, day=6)] = "Epiphany"
 
 
 class MozillaHolidays(holidays.HolidayBase):
@@ -66,6 +41,77 @@ class DesktopBugs(holidays.HolidayBase):
                 self[day.date()] = "Legacy Telemetry Drop in 143.0.4"
 
 
+class ChristianHolidays(holidays.HolidayBase):
+    """
+    Custom holiday calendar for key Christian holidays, mostly related to the
+    Paschal cycle. Includes Mardi Gras, Palm Sunday, Good Friday, Easter,
+    Ascension Day, Corpus Christi. Also includes All Saints' Day, which is not
+    part of the Paschal Cycle.
+
+    Parameters
+    ----------
+    orthodox : bool
+        If True, use Orthodox Easter (Pascha) for the Paschal cycle.
+    fixed_shift_days : int
+        Apply this many days to fixed-date feasts (use 13 for Julian-fixed
+        observance in 1900–2099, e.g., Russian Orthodox).
+    """
+
+    def __init__(
+        self,
+        *args,
+        orthodox: bool = False,
+        fixed_shift_days: int = 0,
+        **kwargs,
+    ):
+        self.orthodox = orthodox
+        self.fixed_shift_days = fixed_shift_days
+        super().__init__(*args, **kwargs)
+
+    def _populate(self, year: int) -> None:
+        # Choose Easter computus
+        easter_sunday = easter(year, method=EASTER_ORTHODOX if self.orthodox else None)
+
+        # Paschal cycle (relative to Easter/Pascha)
+        self[easter_sunday - pd.Timedelta(days=47)] = "Mardi Gras"
+        self[easter_sunday - pd.Timedelta(days=7)] = "Palm Sunday"
+        self[easter_sunday - pd.Timedelta(days=2)] = "Good Friday"
+        self[easter_sunday] = "Easter Sunday"
+        self[easter_sunday + pd.Timedelta(days=39)] = "Ascension Day"
+        self[easter_sunday + pd.Timedelta(days=60)] = "Corpus Christi"
+
+        # Fixed-date feasts (optionally shifted, e.g., Julian -> Gregorian)
+        shift = pd.Timedelta(days=self.fixed_shift_days)
+        self[pd.Timestamp(year=year, month=8, day=15) + shift] = "Assumption of Mary"
+        self[pd.Timestamp(year=year, month=11, day=1) + shift] = "All Saints' Day"
+        self[pd.Timestamp(year=year, month=1, day=6) + shift] = "Epiphany"
+
+
+class ArgentinaHolidays(holidays.HolidayBase):
+    """
+    Custom holiday class for Argentina holidays.
+    """
+
+    def _populate(self, year):
+        # Fixed-date holidays
+        self[pd.Timestamp(year=year, month=9, day=11)] = "Día del Maestro"
+
+
+class BrazilHolidays(holidays.HolidayBase):
+    """
+    Custom holiday class for Brazil holidays.
+    """
+
+    def _populate(self, year):
+        # Fixed-date holidays
+        self[pd.Timestamp(year=year, month=3, day=19)] = "Dia de São José"
+        self[pd.Timestamp(year=year, month=6, day=24)] = "Dia de São João"
+        self[pd.Timestamp(year=year, month=7, day=9)] = (
+            "Dia da Revolução Constitucionalista - São Paulo"
+        )
+        self[pd.Timestamp(year=year, month=10, day=15)] = "Dia do Professor"
+
+
 class CanadaHolidays(holidays.HolidayBase):
     """
     Custom holiday class for Canada holidays.
@@ -73,26 +119,151 @@ class CanadaHolidays(holidays.HolidayBase):
 
     def _populate(self, year):
         # Fixed-date holidays
+        self[pd.Timestamp(year=year, month=6, day=24)] = "Saint-Jean-Baptiste Day"
+        self[pd.Timestamp(year=year, month=9, day=30)] = (
+            "National Day for Truth and Reconciliation"
+        )
         self[pd.Timestamp(year=year, month=11, day=11)] = "Remembrance Day"
+
+        # Moving holidays
+        self[
+            pd.Timestamp(year=year, month=2, day=1)
+            + pd.offsets.WeekOfMonth(week=2, weekday=0)
+        ] = "Family Day"  # third Monday in February
+        self[pd.Timestamp(year=year, month=5, day=25) - pd.offsets.Week(weekday=0)] = (
+            "Victoria Day"  # last Monday preceding May 25
+        )
+        self[
+            pd.Timestamp(year=year, month=8, day=1)
+            + pd.offsets.WeekOfMonth(week=0, weekday=0)
+        ] = "Civic Holiday"  # first Monday in August
+
+
+class ChinaHolidays(holidays.HolidayBase):
+    """
+    Custom holiday class for China holidays.
+    """
+
+    def _populate(self, year):
+        lunar_new_year = next(
+            d
+            for d, name in holidays.CN(years=year).items()
+            if "Spring Festival" in name
+        )
+
+        # Moving holidays
+        self[pd.Timestamp(lunar_new_year) + pd.Timedelta(days=14)] = "Lantern Festival"
+
+
+class GermanyHolidays(holidays.HolidayBase):
+    """
+    Custom holiday class for German holidays.
+    """
+
+    def _populate(self, year):
+
+        # Fixed-date holidays
+        self[pd.Timestamp(year=year, month=3, day=19)] = (
+            "Saint Joseph’s Day (Josefitag)"
+        )
+
+        # Moving holidays
+        self[pd.Timestamp(year=year, month=11, day=23) - pd.offsets.Week(weekday=2)] = (
+            "Day of Repentance and Prayer"  # Wednesday preceding November 23
+        )
 
 
 class IndiaHolidays(holidays.HolidayBase):
     """
-    Custom holiday for India holidays.
+    Custom holiday class for India holidays.
     """
 
     def _populate(self, year):
         # Fixed-date holidays
+        self[pd.Timestamp(year=year, month=1, day=1)] = "New Year's Day"
         self[pd.Timestamp(year=year, month=1, day=15)] = "Army Day"
         self[pd.Timestamp(year=year, month=1, day=23)] = "Parakram Diwas"
+        self[pd.Timestamp(year=year, month=5, day=1)] = "Labour Day"
+        self[pd.Timestamp(year=year, month=9, day=17)] = "Vishwakarma Puja"
+
+        # Moving holidays
+        # NOTE: Some holidays are complicated to calculate because they rely on lunar
+        #       or solar calendars that are not readily available.
+
+        # Holi - https://www.timeanddate.com/holidays/india/holi
+        holi = {
+            2019: "2019-03-21",
+            2020: "2020-03-10",
+            2021: "2021-03-29",
+            2022: "2022-03-18",
+            2023: "2023-03-08",
+            2024: "2024-03-25",
+            2025: "2025-03-14",
+            2026: "2026-03-04",
+            2027: "2027-03-22",
+            2028: "2028-03-11",
+            2029: "2029-03-01",
+            2030: "2030-03-20",
+            2031: "2031-03-09",
+            2032: "2032-03-27",
+            2033: "2033-03-16",
+            2034: "2034-03-05",
+            2035: "2035-03-24",
+        }
+        self[pd.to_datetime(holi[year])] = "Holi"
+
+        # Raksha Bandhan - https://www.timeanddate.com/holidays/india/raksha-bandhan
+        raksha_bandhan = {
+            2019: "2019-08-15",
+            2020: "2020-08-03",
+            2021: "2021-08-22",
+            2022: "2022-08-11",
+            2023: "2023-08-30",
+            2024: "2024-08-19",
+            2025: "2025-08-09",
+            2026: "2026-08-28",
+            2027: "2027-08-17",
+            2028: "2028-08-05",
+            2029: "2029-08-23",
+            2030: "2030-08-13",
+            2031: "2031-08-01",
+            2032: "2032-08-20",
+            2033: "2033-08-10",
+            2034: "2034-08-29",
+            2035: "2035-08-18",
+        }
+        self[pd.to_datetime(raksha_bandhan[year])] = "Raksha Bandhan"
+
+        # Ganesh Chaturthi - https://www.timeanddate.com/holidays/india/ganesh-chaturthi
+        ganesh_chaturthi = {
+            2019: "2019-09-02",
+            2020: "2020-08-22",
+            2021: "2021-09-10",
+            2022: "2022-08-31",
+            2023: "2023-09-19",
+            2024: "2024-09-07",
+            2025: "2025-08-27",
+            2026: "2026-09-14",
+            2027: "2027-09-04",
+            2028: "2028-08-23",
+            2029: "2029-09-11",
+            2030: "2030-09-01",
+            2031: "2031-09-20",
+            2032: "2032-09-08",
+            2033: "2033-08-28",
+            2034: "2034-09-16",
+            2035: "2035-09-05",
+        }
+        self[pd.to_datetime(ganesh_chaturthi[year])] = "Ganesh Chaturthi"
 
 
 class IranHolidays(holidays.HolidayBase):
     """
-    Custom holiday calendar for Iran holidays.
+    Custom holiday class for Iran holidays.
     """
 
     def _populate(self, year):
+        # Historical blackouts
         if year == 2025:
             # Internet Blackout June 18-27, 2025
             for day in range(18, 28):
@@ -101,6 +272,68 @@ class IranHolidays(holidays.HolidayBase):
             # Internet Blackout January 8-23, 2026
             for day in range(8, 23):
                 self[datetime(2026, 1, day).date()] = "Blackout"
+
+        # Fixed-date holidays
+        self[pd.Timestamp(year=year, month=1, day=1)] = "New Year's Day"
+
+        # Moving holidays
+        self[pd.Timestamp(year=year, month=12, day=(21 if year % 4 else 20))] = (
+            "Shab-e Yalda"  # Winter solstice
+        )
+
+
+class ItalyHolidays(holidays.HolidayBase):
+    """
+    Custom holiday class for Italy holidays.
+    """
+
+    def _populate(self, year):
+
+        # Fixed-date holidays
+        self[pd.Timestamp(year=year, month=6, day=24)] = (
+            "The Feast of San Giovanni Battista"
+        )
+
+
+class MexicoHolidays(holidays.HolidayBase):
+    """
+    Custom holiday class for Mexico holidays.
+    """
+
+    def _populate(self, year):
+
+        # Fixed-date holidays
+        self[pd.Timestamp(year=year, month=5, day=15)] = "Dia del Maestro"
+        self[pd.Timestamp(year=year, month=7, day=16)] = "Virgen del Carmen"
+        self[pd.Timestamp(year=year, month=10, day=2)] = "Tlatelolco Commemoration"
+        self[pd.Timestamp(year=year, month=11, day=20)] = "Revolution Day (Actual)"
+        self[pd.Timestamp(year=year, month=12, day=12)] = (
+            "Dia de la Virgen de Guadalupe"
+        )
+
+
+class PolandHolidays(holidays.HolidayBase):
+    """
+    Custom holiday class for Poland holidays.
+    """
+
+    def _populate(self, year):
+
+        # Fixed-date holidays
+        self[pd.Timestamp(year=year, month=5, day=13)] = "Our Lady of Fatima"
+        self[pd.Timestamp(year=year, month=10, day=7)] = "Our Lady of the Rosary"
+        self[pd.Timestamp(year=year, month=10, day=14)] = "National Education Day"
+
+
+class ROWHolidays(holidays.HolidayBase):
+    """
+    Custom holiday class for ROW holidays.
+    """
+
+    def _populate(self, year):
+
+        # Fixed-date holidays
+        self[pd.Timestamp(year=year, month=5, day=1)] = "International Workers' Day"
 
 
 def get_calendar(
@@ -126,26 +359,55 @@ def get_calendar(
     # Use US holidays as a default for ROW (Rest of World)
     if country == "ROW":
         country_holidays = holidays.US(years=holiday_years)
+        country_holidays += ROWHolidays(years=holiday_years)
     else:
         country_holidays = getattr(holidays, country)(years=holiday_years)
-
-    # Optionally add Paschal cycle holidays
-    if country not in exclude_paschal_cycle:
-        country_holidays += ChristianHolidays(years=holiday_years)
 
     # Include Mozilla-specific holidays for 2019
     if 2019 in holiday_years:
         country_holidays += MozillaHolidays(years=holiday_years)
 
+    # Optionally add Christian cycle holidays
+    if country not in exclude_paschal_cycle:
+        if country == "RU":
+            country_holidays += ChristianHolidays(
+                years=holiday_years,
+                orthodox=True,
+                fixed_shift_days=13,
+            )
+        else:
+            country_holidays += ChristianHolidays(years=holiday_years)
+
     # Include country-specific additional holidays
+    if country == "AR":
+        country_holidays += ArgentinaHolidays(years=holiday_years)
+
+    if country == "BR":
+        country_holidays += BrazilHolidays(years=holiday_years)
+
     if country == "CA":
         country_holidays += CanadaHolidays(years=holiday_years)
+
+    if country == "CN":
+        country_holidays += ChinaHolidays(years=holiday_years)
+
+    if country == "DE":
+        country_holidays += GermanyHolidays(years=holiday_years)
 
     if country == "IN":
         country_holidays += IndiaHolidays(years=holiday_years)
 
     if country == "IR":
         country_holidays += IranHolidays(years=holiday_years)
+
+    if country == "IT":
+        country_holidays += ItalyHolidays(years=holiday_years)
+
+    if country == "MX":
+        country_holidays += MexicoHolidays(years=holiday_years)
+
+    if country == "PL":
+        country_holidays += PolandHolidays(years=holiday_years)
 
     # Add any additional user-specified holidays
     for i in additional_holidays:
