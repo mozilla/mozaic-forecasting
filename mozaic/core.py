@@ -217,14 +217,16 @@ class Mozaic:
         )
 
     def _predict_holiday_effects(self):
-        """
-        Compute proportional holiday effect per forecast date (unitless).
-        These are stored as a time-indexed Series and not yet applied to forecasts.
-        """
-
-        # Cross-join forecast dates and holiday dates
         df = pd.merge(
-            pd.DataFrame({"date": self.forecast_dates}),
+            pd.DataFrame(
+                {
+                    "date": pd.date_range(
+                        pd.to_datetime(self.historical_dates.min()),
+                        pd.to_datetime(self.forecast_end_date),
+                        freq="D",
+                    )
+                }
+            ),
             self.holiday_calendar.rename(columns={"submission_date": "holiday_date"}),
             how="cross",
         )
@@ -239,23 +241,38 @@ class Mozaic:
 
         # Exclude system holidays like "Data Loss"
         df = df[~df["holiday"].str.contains("Data Loss", na=False)].copy()
-        unmatched = df[df["average_effect"].isna()]["holiday"].unique()
 
-        df["average_effect"].astype(float).fillna(0.0, inplace=True)
+        cutoff = pd.to_datetime(self.forecast_start_date)
 
-        # add day-of-week scaling
+        # unmatched must be computed BEFORE fillna(0)
+        unmatched = df.loc[
+            (df["date"] >= cutoff) & (df["average_effect"].isna()), "holiday"
+        ].unique()
+
+        df["average_effect"] = df["average_effect"].astype(float).fillna(0.0)
+
         df["dow"] = df["date"].dt.dayofweek
-        mask = df["average_effect"] != 0
-        self.dow_scale = (
-            df.loc[mask].groupby("dow")["average_effect"].mean()
-            / df.loc[mask]["average_effect"].mean()
+        mask = (
+            (df["date"] < cutoff)
+            & (df["date_diff"].between(-2, 2))
+            & (df["average_effect"] != 0)
         )
+
+        denom = df.loc[mask, "average_effect"].mean()
+        if pd.isna(denom) or denom == 0:
+            self.dow_scale = pd.Series(1.0, index=range(7))
+        else:
+            self.dow_scale = (
+                df.loc[mask].groupby("dow")["average_effect"].mean() / denom
+            )
+
         df["average_effect_dow_scaled"] = df["average_effect"] * df["dow"].map(
             self.dow_scale
-        )
+        ).fillna(1.0)
 
         self.proportional_holiday_effects = (
-            df.groupby("date")["average_effect_dow_scaled"]
+            df.loc[df["date"] >= cutoff]
+            .groupby("date")["average_effect_dow_scaled"]
             .sum()
             .reindex(self.forecast_dates, fill_value=0)
         )
