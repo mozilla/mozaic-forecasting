@@ -297,6 +297,7 @@ class Mozaic:
 
         # final multiplier per dow: 1.0 means no change
         dow_scale = pd.Series(1.0 + shrunk_mean.values, index=range(7))
+        print(dow_scale)
 
         # apply multiplier to the forecast rows
         df["dow"] = df["date"].dt.dayofweek
