@@ -241,72 +241,19 @@ class Mozaic:
         df = df[~df["holiday"].str.contains("Data Loss", na=False)].copy()
         unmatched = df[df["average_effect"].isna()]["holiday"].unique()
 
-        # --- simple inline DOW scaling computed from history ---
-        # build a tiny historical merged table like _fit_holiday_effects but local
-        hist = pd.DataFrame(
-            {
-                "submission_date": self.historical_dates,
-                "observed": self.raw_historical_data,
-                "expected": self.holiday_detrended_historical_data,
-            }
-        )
-        hist = hist[
-            hist["submission_date"] < pd.to_datetime(self.forecast_start_date)
-        ].copy()
+        df["average_effect"].astype(float).fillna(0.0, inplace=True)
 
-        hist_merged = hist.merge(
-            self.holiday_calendar, how="cross", suffixes=("_dau", "_holiday")
-        )
-        hist_merged["date_diff"] = (
-            hist_merged["submission_date_dau"] - hist_merged["submission_date_holiday"]
-        ).dt.days
-        # same +/-7 window as your pipeline
-        hist_merged = hist_merged[hist_merged["date_diff"].between(-7, 7)].copy()
-        hist_merged = hist_merged.assign(
-            holiday=hist_merged["holiday"].str.split("; ")
-        ).explode("holiday")
-        hist_merged = hist_merged[
-            ~hist_merged["holiday"].str.contains("Data Loss", na=False)
-        ].copy()
-
-        # proportional residual and the same inverse-distance weighting
-        hist_merged["proportional_effect"] = (
-            hist_merged["observed"] - hist_merged["expected"]
-        ) / hist_merged["expected"]
-        hist_merged["weight"] = 1 / (1 + hist_merged["date_diff"].abs())
-        hist_merged["scale"] = hist_merged["weight"] / hist_merged.groupby(
-            "submission_date_dau"
-        )["weight"].transform("sum")
-        hist_merged["weighted_effect"] = (
-            hist_merged["proportional_effect"] * hist_merged["scale"]
-        )
-
-        # aggregate by dow and shrink with a tiny pseudocount
-        hist_merged["dow"] = hist_merged["submission_date_dau"].dt.dayofweek
-        dow_agg = (
-            hist_merged.groupby("dow")
-            .agg(
-                weighted_sum=("weighted_effect", "sum"),
-                weight_total=("scale", "sum"),
-            )
-            .reindex(range(7), fill_value=0)
-        )
-
-        prior = 5.0  # tiny pseudocount to avoid extreme values with sparse data
-        shrunk_mean = dow_agg["weighted_sum"] / (dow_agg["weight_total"] + prior)
-
-        # final multiplier per dow: 1.0 means no change
-        dow_scale = pd.Series(1.0 + shrunk_mean.values, index=range(7))
-        print(dow_scale)
-
-        # apply multiplier to the forecast rows
+        # add day-of-week scaling
         df["dow"] = df["date"].dt.dayofweek
-        df["average_effect"] = df["average_effect"].astype(float).fillna(0.0)
-        df["average_effect"] = df["average_effect"] * df["dow"].map(dow_scale)
+        dow_scale = (
+            df.groupby("dow")["average_effect"].mean() / df["average_effect"].mean()
+        )
+        df["average_effect_dow_scaled"] = df["average_effect"] * df["dow"].map(
+            dow_scale
+        )
 
-        # then aggregate as before
         self.proportional_holiday_effects = (
-            df.groupby("date")["average_effect"]
+            df.groupby("date")["average_effect_dow_scaled"]
             .sum()
             .reindex(self.forecast_dates, fill_value=0)
         )
