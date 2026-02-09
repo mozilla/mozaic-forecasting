@@ -266,6 +266,8 @@ class Mozaic:
                 df.loc[mask].groupby("dow")["average_effect"].mean() / denom
             )
 
+        self.dow_scale = self.dow_scale / self.dow_scale.min()
+
         df["average_effect_dow_scaled"] = df["average_effect"] * df["dow"].map(
             self.dow_scale
         ).fillna(1.0)
