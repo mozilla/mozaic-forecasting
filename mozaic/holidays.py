@@ -91,6 +91,18 @@ class ChristianHolidays(holidays.HolidayBase):
         self[pd.Timestamp(year=year, month=1, day=6) + shift] = "Epiphany"
 
 
+class GlobalHolidays(holidays.HolidayBase):
+    """
+    Custom holiday class for Argentina holidays.
+    """
+
+    def _populate(self, year):
+        # Fixed-date holidays
+        self[pd.Timestamp(year=year, month=12, day=24)] = "Christmas Eve (Global)"
+        self[pd.Timestamp(year=year, month=12, day=31)] = "New Year's Eve (Global)"
+        self[pd.Timestamp(year=year, month=1, day=1)] = "New Year's Day (Global)"
+
+
 class ArgentinaHolidays(holidays.HolidayBase):
     """
     Custom holiday class for Argentina holidays.
@@ -184,7 +196,6 @@ class IndiaHolidays(holidays.HolidayBase):
 
     def _populate(self, year):
         # Fixed-date holidays
-        self[pd.Timestamp(year=year, month=1, day=1)] = "New Year's Day"
         self[pd.Timestamp(year=year, month=1, day=15)] = "Army Day"
         self[pd.Timestamp(year=year, month=1, day=23)] = "Parakram Diwas"
         self[pd.Timestamp(year=year, month=5, day=1)] = "Labour Day"
@@ -277,9 +288,6 @@ class IranHolidays(holidays.HolidayBase):
             for day in range(8, 23):
                 self[datetime(2026, 1, day).date()] = "Blackout"
 
-        # Fixed-date holidays
-        self[pd.Timestamp(year=year, month=1, day=1)] = "New Year's Day"
-
         # Moving holidays
         self[pd.Timestamp(year=year, month=12, day=(21 if year % 4 else 20))] = (
             "Shab-e Yalda"  # Winter solstice
@@ -366,6 +374,8 @@ def get_calendar(
         country_holidays += ROWHolidays(years=holiday_years)
     else:
         country_holidays = getattr(holidays, country)(years=holiday_years)
+
+    country_holidays += GlobalHolidays(years=holiday_years)
 
     # Include Mozilla-specific holidays for 2019
     if 2019 in holiday_years:
