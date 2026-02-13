@@ -153,6 +153,10 @@ class CanadaHolidays(holidays.HolidayBase):
             pd.Timestamp(year=year, month=8, day=1)
             + pd.offsets.WeekOfMonth(week=0, weekday=0)
         ] = "Civic Holiday"  # first Monday in August
+        self[
+            pd.Timestamp(year=year, month=10, day=1)
+            + pd.offsets.WeekOfMonth(week=1, weekday=0)
+        ] = "Thanksgiving"  # second Monday in October
 
 
 class ChinaHolidays(holidays.HolidayBase):
