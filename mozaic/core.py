@@ -427,26 +427,6 @@ class Mozaic:
 
         return df.reset_index(drop=True)
 
-    def to_forecast_df(self, country: str = None, population: str = None, 
-            ma: bool = False, quantile: float = 0.5):
-        """Returns a focused dataframe with target_date, "actual" or "forecast", and value 
-            columns. If either country, population, or both are None, then the dataframe 
-            values are aggregated over all values of that parameter(s).
-        """
-        if not (country or population):
-            df = self.to_df(quantile)
-
-        else:
-            relevant_tiles = []
-            for tile in self.tiles:
-                if country is None or tile.country == country:
-                    if population is None or tile.population == population:
-                        relevant_tiles.append(tile)
-
-            df = sum_tile_dfs([tile.to_df(quantile) for tile in relevant_tiles])
-
-        return Mozaic._standard_df_to_forecast_df(df, ma).reset_index(drop=True)
-
     @staticmethod
     def _add_indicator_columns(country: str, population: str, df: pd.DataFrame) -> pd.DataFrame:
         df['country'] = country
@@ -460,17 +440,17 @@ class Mozaic:
             aggregates over all of them, giving (n_countries+1)*(n_populations+1) rows per date."""
         tile_dict = {}
         for country in self.get_countries():
-            tile_dict[(country, 'None')] = list()
+            tile_dict[(country, 'ALL')] = list()
             for population in self.get_populations():
                 tile_dict[(country, population)] = list()
         for population in self.get_populations():
-            tile_dict[('None', population)] = list()
+            tile_dict[('ALL', population)] = list()
 
         for tile in self.tiles:
             cur_country = tile.country
             cur_population = tile.population
-            tile_dict[('None', cur_population)].append(tile)
-            tile_dict[(cur_country, 'None')].append(tile)
+            tile_dict[('ALL', cur_population)].append(tile)
+            tile_dict[(cur_country, 'ALL')].append(tile)
             tile_dict[(cur_country, cur_population)].append(tile)
 
         all_dfs = list()
@@ -480,7 +460,7 @@ class Mozaic:
                 key[0], key[1], Mozaic._standard_df_to_forecast_df(cur_df, ma)
             ))
         all_dfs.append(Mozaic._add_indicator_columns(
-            'None', 'None', Mozaic._standard_df_to_forecast_df(self.to_df(quantile), ma)
+            'ALL', 'ALL', Mozaic._standard_df_to_forecast_df(self.to_df(quantile), ma)
         ))
 
         return (
