@@ -477,10 +477,10 @@ class Mozaic:
         for key, relevant_tiles in tile_dict.items():
             cur_df = sum_tile_dfs([tile.to_df(quantile) for tile in relevant_tiles])
             all_dfs.append(Mozaic._add_indicator_columns(
-                key[0], key[1], Mozaic._standard_df_to_forecast_df(cur_df)
+                key[0], key[1], Mozaic._standard_df_to_forecast_df(cur_df, ma)
             ))
         all_dfs.append(Mozaic._add_indicator_columns(
-            'None', 'None', Mozaic._standard_df_to_forecast_df(self.to_df(quantile))
+            'None', 'None', Mozaic._standard_df_to_forecast_df(self.to_df(quantile), ma)
         ))
 
         return (
