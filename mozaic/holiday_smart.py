@@ -93,7 +93,7 @@ class ChristianHolidays(holidays.HolidayBase):
 
 class GlobalHolidays(holidays.HolidayBase):
     """
-    Custom holiday class for Argentina holidays.
+    Custom holiday class for Global holidays.
     """
 
     def _populate(self, year):
@@ -101,6 +101,14 @@ class GlobalHolidays(holidays.HolidayBase):
         self[pd.Timestamp(year=year, month=12, day=24)] = "Christmas Eve (Global)"
         self[pd.Timestamp(year=year, month=12, day=31)] = "New Year's Eve (Global)"
         self[pd.Timestamp(year=year, month=1, day=1)] = "New Year's Day (Global)"
+
+        # Moving holidays
+        lunar_new_year = next(
+            d
+            for d, name in holidays.CN(years=year).items()
+            if "Spring Festival" in name
+        )
+        self[pd.Timestamp(lunar_new_year)] = "Lunar New Year (Global)"
 
 
 class ArgentinaHolidays(holidays.HolidayBase):
