@@ -5,7 +5,7 @@ import pandas as pd
 from dataclasses import dataclass, field
 from typing import Any, List, Type
 
-from mozaic.holidays import get_calendar, detrend
+from mozaic.holiday_smart import get_calendar, detrend
 
 
 @dataclass
@@ -73,6 +73,7 @@ class Tile:
         self.forecast_reconciled = self.forecast.copy(deep=True)
 
     def to_df(self, quantile=0.5):
+        """Returns a comprehensive dataframe with granular actual and forecast data"""
         actuals_df = pd.DataFrame(
             {
                 "submission_date": self.historical_dates.values,
@@ -117,3 +118,11 @@ class Tile:
                 df[f"{i}_28ma"] = df[i].rolling(28).mean()
 
         return df
+
+def sum_tile_dfs(dfs: list[pd.DataFrame]) -> pd.DataFrame:
+    return (
+        pd.concat(dfs, ignore_index=True)
+        .groupby('submission_date', as_index=False)
+        .sum(numeric_only=True, min_count=1)
+    )
+
