@@ -13,7 +13,7 @@ import prophet
 
 logging.getLogger("cmdstanpy").disabled = True
 
-def desktop_forecast_model_(historical_data, historical_dates, forecast_dates):
+def desktop_forecast_model(historical_data, historical_dates, forecast_dates):
     params = {
         "daily_seasonality": False,
         "weekly_seasonality": True,
@@ -86,7 +86,7 @@ import prophet
 
 logging.getLogger("cmdstanpy").disabled = True
 
-def mobile_forecast_model_(historical_data, historical_dates, forecast_dates):
+def mobile_forecast_model(historical_data, historical_dates, forecast_dates):
     params = {
         "daily_seasonality": False,
         "weekly_seasonality": True,
