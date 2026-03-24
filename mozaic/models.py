@@ -6,13 +6,20 @@ import prophet
 logging.getLogger("cmdstanpy").disabled = True
 
 
-def desktop_forecast_model(historical_data, historical_dates, forecast_dates):
+import logging
+import numpy as np
+import pandas as pd
+import prophet
+
+logging.getLogger("cmdstanpy").disabled = True
+
+def desktop_forecast_model_(historical_data, historical_dates, forecast_dates):
     params = {
         "daily_seasonality": False,
         "weekly_seasonality": True,
-        "yearly_seasonality": False,
+        "yearly_seasonality": True,
         "uncertainty_samples": 1000,
-        "changepoint_range": 0.8,
+        "changepoint_range": 0.7,
         "seasonality_prior_scale": 0.00825,
         "changepoint_prior_scale": 0.15983,
         "growth": "logistic",
@@ -20,15 +27,9 @@ def desktop_forecast_model(historical_data, historical_dates, forecast_dates):
 
     x = historical_data
 
-    # if x.max() >= 10e6:
-    #     params["growth"] = "logistic"
-
     if (x.abs().corr(x.diff().abs()) or 0) > 0.0:
         params["seasonality_mode"] = "multiplicative"
         params["growth"] = "linear"
-        # params["seasonality_prior_scale"] = 20
-        # params["changepoint_prior_scale"] = 0.05
-        # params["growth"] = "logistic"
 
     if (len(x.dropna()) > (365 * 2)) and (
         np.quantile(x.dropna(), 0.5) / (np.quantile(x.dropna(), 0.1) + 1e-8) < 5
@@ -49,25 +50,13 @@ def desktop_forecast_model(historical_data, historical_dates, forecast_dates):
     )
     future = pd.DataFrame({"ds": forecast_dates})
 
-    # if "growth" in params:
-    #     if historical_data.max() >= 10e6:
-    #         cap =  observed["y"].max() * 1.2
-    #         floor = observed["y"].min() * 0.8
-    #         observed["cap"] = cap
-    #         observed["floor"] = floor
-    #         future["cap"] = cap
-    #         future["floor"] = floor
-    #     else:
-    #         cap = observed["y"].max() * 1.2
-    #         floor = 0.0
-    #         observed["cap"] = cap
-    #         observed["floor"] = floor
-    #         future["cap"] = cap
-    #         future["floor"] = floor
-
     if params["growth"] == "logistic":
-        cap = observed["y"].max() * 1.2
-        floor = observed["y"].min() * 0.8
+        cap = observed["y"].tail(366).max() * 1.05
+        if cap > 100e6:
+            floor = observed["y"].tail(366).min() * 1
+        else:
+            floor = observed["y"].tail(366).min() * 0.92
+        
         observed["cap"] = cap
         observed["floor"] = floor
         future["cap"] = cap
@@ -90,19 +79,27 @@ def desktop_forecast_model(historical_data, historical_dates, forecast_dates):
     return predictive_samples, m, prophet_forecast
 
 
-def mobile_forecast_model(historical_data, historical_dates, forecast_dates):
+import logging
+import numpy as np
+import pandas as pd
+import prophet
+
+logging.getLogger("cmdstanpy").disabled = True
+
+def mobile_forecast_model_(historical_data, historical_dates, forecast_dates):
     params = {
         "daily_seasonality": False,
         "weekly_seasonality": True,
         "yearly_seasonality": len(historical_data.dropna()) > (365 * 2),
         "uncertainty_samples": 1000,
-        "changepoint_range": 0.8,
+        "changepoint_range": 0.82,
         "growth": "logistic",
     }
 
     if historical_data.max() >= 1e6:
         params["seasonality_prior_scale"] = 0.1
         params["changepoint_prior_scale"] = 0.1
+        params["growth"] = "linear"
 
     if historical_data.max() <= 2e6:
         params["seasonality_mode"] = "multiplicative"
@@ -118,14 +115,14 @@ def mobile_forecast_model(historical_data, historical_dates, forecast_dates):
 
     if "growth" in params:
         if historical_data.max() >= 10e6:
-            cap = historical_data.max() * 2.0
-            floor = historical_data.min() * 0.8
+            cap = observed["y"].tail(366).max() * 1.10
+            floor = observed["y"].tail(366).min() * 1.05
             observed["cap"] = cap
             observed["floor"] = floor
             future["cap"] = cap
             future["floor"] = floor
         else:
-            cap = historical_data.max() * 2.0
+            cap = historical_data.max() * 1.1
             floor = 0.0
             observed["cap"] = cap
             observed["floor"] = floor
