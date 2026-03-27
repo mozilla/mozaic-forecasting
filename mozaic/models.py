@@ -6,13 +6,6 @@ import prophet
 logging.getLogger("cmdstanpy").disabled = True
 
 
-import logging
-import numpy as np
-import pandas as pd
-import prophet
-
-logging.getLogger("cmdstanpy").disabled = True
-
 def desktop_forecast_model(historical_data, historical_dates, forecast_dates):
     params = {
         "daily_seasonality": False,
@@ -78,13 +71,6 @@ def desktop_forecast_model(historical_data, historical_dates, forecast_dates):
     predictive_samples[predictive_samples < 0] = 0
     return predictive_samples, m, prophet_forecast
 
-
-import logging
-import numpy as np
-import pandas as pd
-import prophet
-
-logging.getLogger("cmdstanpy").disabled = True
 
 def mobile_forecast_model(historical_data, historical_dates, forecast_dates):
     params = {
