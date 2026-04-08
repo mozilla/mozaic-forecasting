@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import pandas as pd
 
@@ -291,6 +293,19 @@ class Mozaic:
             .sum()
             .reindex(self.forecast_dates, fill_value=0)
         )
+        # warn if any holiday effects will be clipped at the -0.6 boundary
+        clipped = self.proportional_holiday_effects[self.proportional_holiday_effects < -0.6]
+        if len(clipped) > 0:
+            details = ", ".join(
+                f"{date.strftime('%Y-%m-%d')} ({value:.3f})"
+                for date, value in clipped.items()
+            )
+            warnings.warn(
+                f"Holiday effects clipped at -0.6 boundary for dates: {details}",
+                UserWarning,
+                stacklevel=2,
+            )
+
         # ensure no single-day impact becomes too large
         self.proportional_holiday_effects.clip(lower=-0.6, upper=0, inplace=True)
 
