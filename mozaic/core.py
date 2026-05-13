@@ -16,6 +16,7 @@ class Mozaic:
     tiles: List[Tile]
     forecast_model: Any
     is_country_level: bool = False
+    holiday_effect_floor: float = -0.6
 
     def __post_init__(self):
 
@@ -293,21 +294,21 @@ class Mozaic:
             .sum()
             .reindex(self.forecast_dates, fill_value=0)
         )
-        # warn if any holiday effects will be clipped at the -0.6 boundary
-        clipped = self.proportional_holiday_effects[self.proportional_holiday_effects < -0.6]
+        # warn if any holiday effects will be clipped at the floor boundary
+        clipped = self.proportional_holiday_effects[self.proportional_holiday_effects < self.holiday_effect_floor]
         if len(clipped) > 0:
             details = ", ".join(
                 f"{date.strftime('%Y-%m-%d')} ({value:.3f})"
                 for date, value in clipped.items()
             )
             warnings.warn(
-                f"Holiday effects clipped at -0.6 boundary for dates: {details}",
+                f"Holiday effects clipped at {self.holiday_effect_floor} boundary for dates: {details}",
                 UserWarning,
                 stacklevel=2,
             )
 
         # ensure no single-day impact becomes too large
-        self.proportional_holiday_effects.clip(lower=-0.6, upper=0, inplace=True)
+        self.proportional_holiday_effects.clip(lower=self.holiday_effect_floor, upper=0, inplace=True)
 
         # ensure that blackouts reflect 100% decreases
         blackout_idx = self.proportional_holiday_effects.index.intersection(

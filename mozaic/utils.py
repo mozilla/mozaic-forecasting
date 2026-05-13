@@ -38,6 +38,9 @@ def populate_tiles(
     forecast_start_date,
     forecast_end_date,
     additional_holidays: List[Type[holidays.HolidayBase]] = [],
+    holiday_threshold: float = -0.032,
+    holiday_max_radius: int = 5,
+    holiday_min_radius: int = 3,
 ):
     for metric, dataset in datasets.items():
         print("\n" + metric)
@@ -81,6 +84,9 @@ def populate_tiles(
                             historical_dates=df["x"],
                             raw_historical_data=df[population],
                             additional_holidays=additional_holidays,
+                            threshold=holiday_threshold,
+                            max_radius=holiday_max_radius,
+                            min_radius=holiday_min_radius,
                         )
                     )
         print()
@@ -93,6 +99,7 @@ def curate_mozaics(
     metric_mozaics,
     country_mozaics,
     population_mozaics,
+    holiday_effect_floor: float = -0.6,
 ):
     for m in datasets.keys():
         print(m)
@@ -104,6 +111,7 @@ def curate_mozaics(
                 tileset.fetch(metric=m, country=c),
                 forecast_model=forecast_model,
                 is_country_level=True,
+                holiday_effect_floor=holiday_effect_floor,
             )
             unmatched = country_mozaics[m][c].assign_holiday_effects()
             if unmatched:
@@ -115,12 +123,14 @@ def curate_mozaics(
             population_mozaics[m][p] = Mozaic(
                 tileset.fetch(metric=m, population=p),
                 forecast_model=forecast_model,
+                holiday_effect_floor=holiday_effect_floor,
             )
 
         print("\n   reconciling...")
         metric_mozaics[m] = Mozaic(
             tileset.fetch(metric=m),
             forecast_model=forecast_model,
+            holiday_effect_floor=holiday_effect_floor,
         )
         metric_mozaics[m].reset_reconciliation()
         metric_mozaics[m].aggregate_holiday_impacts_upward(use_reconciled=True)
