@@ -160,11 +160,11 @@ def desktop_forecast_model(historical_data, historical_dates, forecast_dates, re
     future = pd.DataFrame({"ds": forecast_dates})
 
     if params["growth"] == "logistic":
-        cap = observed["y"].tail(366).max() * 1.05
+        cap = observed["y"].tail(426).max() * 1.05
         if cap > 100e6:
-            floor = observed["y"].tail(366).min() * 1
+            floor = observed["y"].tail(426).min() * 1
         else:
-            floor = observed["y"].tail(366).min() * 0.92
+            floor = observed["y"].tail(426).min() * 0.92
         
         observed["cap"] = cap
         observed["floor"] = floor
@@ -221,8 +221,8 @@ def mobile_forecast_model(historical_data, historical_dates, forecast_dates, rec
 
     if "growth" in params:
         if historical_data.max() >= 10e6:
-            cap = observed["y"].tail(366).max() * 1.10
-            floor = observed["y"].tail(366).min() * 1.05
+            cap = observed["y"].tail(426).max() * 1.10
+            floor = observed["y"].tail(426).min() * 1.05
             observed["cap"] = cap
             observed["floor"] = floor
             future["cap"] = cap
