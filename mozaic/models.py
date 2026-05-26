@@ -12,6 +12,13 @@ logging.getLogger("cmdstanpy").disabled = True
 @dataclass
 class ModelConfig:
     prophet_recent_weeks: int = 13
+    # changepoint_range and n_changepoints control how Prophet places its trend
+    # changepoints. Defaults match the values hardcoded in the desktop/mobile
+    # forecast functions prior to this knob being exposed (changepoint_range=0.7,
+    # n_changepoints=25). Subclasses may override changepoint_range to match the
+    # platform-specific default (e.g. mobile uses 0.82).
+    prophet_changepoint_range: float = 0.7
+    prophet_n_changepoints: int = 25
     holiday_threshold: float = -0.032
     holiday_max_radius: int = 5
     holiday_min_radius: int = 3
@@ -27,6 +34,8 @@ class ModelConfig:
             f"cps{cps}"
             f"_thresh{thresh}"
             f"_recent{self.prophet_recent_weeks}"
+            f"_cpr{self.prophet_changepoint_range}"
+            f"_ncp{self.prophet_n_changepoints}"
             f"_clip{abs(self.holiday_effect_floor)}"
         )
 
@@ -38,6 +47,8 @@ class DesktopModelConfig(ModelConfig):
 
 @dataclass
 class MobileModelConfig(ModelConfig):
+    # Mobile previously hardcoded changepoint_range=0.82; preserve that default.
+    prophet_changepoint_range: float = 0.82
     prophet_changepoint_prior_scale: float = 0.02
 
 
@@ -52,6 +63,8 @@ def make_desktop_model(config: DesktopModelConfig = None):
             forecast_dates,
             recent_weeks=config.prophet_recent_weeks,
             changepoint_prior_scale=config.prophet_changepoint_prior_scale,
+            changepoint_range=config.prophet_changepoint_range,
+            n_changepoints=config.prophet_n_changepoints,
         )
 
     return model
@@ -68,6 +81,8 @@ def make_mobile_model(config: MobileModelConfig = None):
             forecast_dates,
             recent_weeks=config.prophet_recent_weeks,
             changepoint_prior_scale=config.prophet_changepoint_prior_scale,
+            changepoint_range=config.prophet_changepoint_range,
+            n_changepoints=config.prophet_n_changepoints,
         )
 
     return model
@@ -122,13 +137,22 @@ def _add_conditional_weekly_seasonality(
     return observed, future
 
 
-def desktop_forecast_model(historical_data, historical_dates, forecast_dates, recent_weeks=13, changepoint_prior_scale=0.15983):
+def desktop_forecast_model(
+    historical_data,
+    historical_dates,
+    forecast_dates,
+    recent_weeks=13,
+    changepoint_prior_scale=0.15983,
+    changepoint_range=0.7,
+    n_changepoints=25,
+):
     params = {
         "daily_seasonality": False,
         "weekly_seasonality": False,
         "yearly_seasonality": True,
         "uncertainty_samples": 1000,
-        "changepoint_range": 0.7,
+        "changepoint_range": changepoint_range,
+        "n_changepoints": n_changepoints,
         "seasonality_prior_scale": 0.00825,
         "changepoint_prior_scale": changepoint_prior_scale,
         "growth": "logistic",
@@ -192,13 +216,22 @@ def desktop_forecast_model(historical_data, historical_dates, forecast_dates, re
     return predictive_samples, m, prophet_forecast
 
 
-def mobile_forecast_model(historical_data, historical_dates, forecast_dates, recent_weeks=13, changepoint_prior_scale=0.02):
+def mobile_forecast_model(
+    historical_data,
+    historical_dates,
+    forecast_dates,
+    recent_weeks=13,
+    changepoint_prior_scale=0.02,
+    changepoint_range=0.82,
+    n_changepoints=25,
+):
     params = {
         "daily_seasonality": False,
         "weekly_seasonality": False,
         "yearly_seasonality": len(historical_data.dropna()) > (365 * 2),
         "uncertainty_samples": 1000,
-        "changepoint_range": 0.82,
+        "changepoint_range": changepoint_range,
+        "n_changepoints": n_changepoints,
         "growth": "logistic",
     }
 
