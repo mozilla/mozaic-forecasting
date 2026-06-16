@@ -9,6 +9,8 @@ from typing import Optional, List, Type
 
 NO_PASCHAL_CYCLE = ["IN", "JP", "IR", "CN"]
 
+WARMUP_FLOOR_FRAC = 0.01
+
 
 class MozillaHolidays(holidays.HolidayBase):
     """
@@ -500,6 +502,27 @@ def detrend(
             'x' (position), 'v' (velocity), 'a' (acceleration), and 'expected' (detrended DAU).
     """
 
+    # Find where the series clears a near-zero warmup head
+    def warmup_trim_index(y):
+        nz = y[y > 0]
+        if len(y) < 7 or nz.empty:
+            return 0
+        floor = WARMUP_FLOOR_FRAC * nz.median()
+        above = (y.rolling(7, min_periods=1).mean() >= floor).to_numpy().nonzero()[0]
+        return int(above[0]) if len(above) else 0
+
+    # Trim a near-zero warmup head before detrending: a long zero head seeds the
+    # spike clamp with zeros and locks expected==y for the whole series. Detrend
+    # the tail only and reattach the untouched prefix at the end.
+    trim = warmup_trim_index(pd.Series(y).reset_index(drop=True))
+    prefix = None
+    if trim > 0:
+        y = pd.Series(y).reset_index(drop=True)
+        dates = pd.Series(dates).reset_index(drop=True)
+        prefix = y.iloc[:trim]
+        y = y.iloc[trim:].reset_index(drop=True)
+        dates = dates.iloc[trim:].reset_index(drop=True)
+
     df = pd.DataFrame({"submission_date": pd.to_datetime(dates), "y": y}).copy(
         deep=True
     )
@@ -558,7 +581,9 @@ def detrend(
 
             # If within holiday radius and relative error is below threshold, apply smoothing
             if not pd.isna(i.y) and (
-                (i.days_from_holiday <= max_radius) and (i.y / abs(e) - 1) < threshold
+                (i.days_from_holiday <= max_radius)
+                and abs(e) > 0
+                and (i.y / abs(e) - 1) < threshold
             ):
                 weight = (min_radius + 1) / (i.days_from_holiday + 1)
                 blended = e * weight + i.y * (1 - weight)
@@ -578,4 +603,7 @@ def detrend(
     df["a"] = _a
     df["expected"] = _e
 
-    return pd.to_numeric(df["expected"])
+    expected = pd.to_numeric(df["expected"])
+    if prefix is not None:
+        expected = pd.to_numeric(pd.concat([prefix, expected], ignore_index=True))
+    return expected
