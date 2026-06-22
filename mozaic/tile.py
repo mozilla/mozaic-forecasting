@@ -21,7 +21,7 @@ class Tile:
     raw_historical_data: pd.Series
 
     additional_holidays: List[Type[holidays.HolidayBase]] = field(default_factory=list)
-    threshold: float = -0.05
+    threshold: float = -0.035
     max_radius: int = 5
     min_radius: int = 3
 

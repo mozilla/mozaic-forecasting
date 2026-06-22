@@ -43,6 +43,18 @@ class DesktopBugs(holidays.HolidayBase):
                 self[day.date()] = "Legacy Telemetry Drop in 143.0.4"
 
 
+class MobileEvents(holidays.HolidayBase):
+    """
+    Custom holiday calendar for Mobile-specific metric-impacting events.
+    """
+
+    def _populate(self, year):
+        if year == 2026:
+            # Organic DAU loss Feb 16 – Mar 10, 2026
+            for day in pd.date_range("2026-02-16", "2026-03-10"):
+                self[day.date()] = "Organic DAU Loss"
+
+
 class ChristianHolidays(holidays.HolidayBase):
     """
     Custom holiday calendar for key Christian holidays, mostly related to the
@@ -196,6 +208,11 @@ class GermanyHolidays(holidays.HolidayBase):
         self[pd.Timestamp(year=year, month=3, day=19)] = (
             "Saint Joseph’s Day (Josefitag)"
         )
+
+        # One-time holidays
+        # if year == 2026:
+        #     for day in pd.date_range("2026-04-03", "2026-04-05"):
+        #         self[day.date()] = "Peace March Day"
 
         # Moving holidays
         self[pd.Timestamp(year=year, month=11, day=23) - pd.offsets.Week(weekday=2)] = (
