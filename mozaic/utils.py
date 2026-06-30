@@ -90,6 +90,9 @@ def splice_fill(datasets: dict, fill: pd.DataFrame, country: str = None) -> dict
 
 def _pivot_populations(dataset, country):
     df = dataset[dataset["country"] == country].copy(deep=True)
+    # Normalize x to datetime64 so the real and synthetic pivots align regardless of the
+    # caller's date dtype (BigQuery sources arrive as db_dtypes "dbdate", fills as datetime64)
+    df["x"] = pd.to_datetime(df["x"])
     cols = list(set(df.columns) - {"x", "y", "country"})
     df["population"] = (
         df[cols]
