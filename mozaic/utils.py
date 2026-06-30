@@ -122,18 +122,32 @@ def populate_tiles(
     holiday_min_radius: int = 3,
     data_source: Optional[str] = None,
     additional_fills: Optional[List[pd.DataFrame]] = None,
+    apply_builtin_fills: bool = True,
 ):
     # Built-in counterfactual gap fills (e.g. the Iran 2026 outage) apply automatically,
-    # like a country's holiday calendar; additional_fills adds caller-supplied ones.
-    # Only consult the registry when a country it covers is actually present, so ordinary
-    # runs stay silent (no work, no ambiguity warning).
+    # like a country's holiday calendar; additional_fills adds caller-supplied ones, and
+    # apply_builtin_fills=False disables the built-ins (for A/B or disable runs).
     gap_fills = list(additional_fills or [])
-    registered = fills.registered_fills()
-    present = set().union(*(set(d["country"]) for d in datasets.values()))
-    covered = {c for _, f in registered for c in f["country"].unique()}
-    if present & covered:
+    if apply_builtin_fills:
         seg = set(next(iter(datasets.values())).columns) - {"x", "y", "country"}
-        gap_fills = fills.fills_for(seg, data_source=data_source) + gap_fills
+        present = set().union(*(set(d["country"]) for d in datasets.values()))
+        if data_source is not None:
+            # Explicit source = opt in to its fills; flag the silent no-op where a fill's
+            # country was bucketed into ROW (zero rows) instead of its own market.
+            builtin = fills.fills_for(seg, data_source=data_source)
+            for f in builtin:
+                for c in set(f["country"]) - present:
+                    print(
+                        f"⚠️  built-in {c} gap fill selected for {data_source} but no "
+                        f"country=='{c}' rows present -- is {c} bucketed into ROW?"
+                    )
+            gap_fills = builtin + gap_fills
+        else:
+            # No source: only consult the registry when a covered country is present, so
+            # ordinary runs stay silent (no work, no ambiguity warning).
+            covered = {c for _, f in fills.registered_fills() for c in f["country"].unique()}
+            if present & covered:
+                gap_fills = fills.fills_for(seg, data_source=None) + gap_fills
 
     synthetic_datasets = datasets
     for fill in gap_fills:
