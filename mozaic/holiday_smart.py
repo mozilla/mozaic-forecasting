@@ -113,6 +113,7 @@ class GlobalHolidays(holidays.HolidayBase):
         self[pd.Timestamp(year=year, month=12, day=24)] = "Christmas Eve (Global)"
         self[pd.Timestamp(year=year, month=12, day=31)] = "New Year's Eve (Global)"
         self[pd.Timestamp(year=year, month=1, day=1)] = "New Year's Day (Global)"
+        self[pd.Timestamp(year=year, month=5, day=1)] = "Labour Day (Global)"
 
         # Moving holidays
         lunar_new_year = next(
@@ -121,6 +122,8 @@ class GlobalHolidays(holidays.HolidayBase):
             if "Spring Festival" in name
         )
         self[pd.Timestamp(lunar_new_year)] = "Lunar New Year (Global)"
+        # Whit Monday = Pentecost Monday = Easter + 50 days
+        self[easter(year) + pd.Timedelta(days=50)] = "Whit Monday (Global)"
 
 
 class ArgentinaHolidays(holidays.HolidayBase):
