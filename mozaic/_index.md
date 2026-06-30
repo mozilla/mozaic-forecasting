@@ -9,11 +9,11 @@ Core forecasting library. Each module has a single responsibility; see below for
 | `tile.py` | `Tile` dataclass — one (metric, country, population) series. Holiday calendar build, holiday detrend, per-tile Prophet fit | Aggregation, reconciliation |
 | `core.py` | `Mozaic` dataclass — groups tiles, fits aggregate Prophet model, estimates/applies holiday effects, reconciles forecasts | Data loading, tile construction |
 | `models.py` | `ModelConfig` / `DesktopModelConfig` / `MobileModelConfig` dataclasses; `make_desktop_model` / `make_mobile_model` factory fns; `desktop_forecast_model` / `mobile_forecast_model` raw callables | Application-level orchestration |
-| `utils.py` | `populate_tiles` (builds TileSet from datasets), `curate_mozaics` (orchestrates country/population/metric mozaics), `mozaic_divide` | Core forecasting logic |
+| `utils.py` | `populate_tiles` (builds TileSet from datasets; `synthetic_datasets` injects per-tile counterfactual training data), `splice_fill` (swaps a country's in-window rows for counterfactual fill rows), `curate_mozaics` (orchestrates country/population/metric mozaics), `mozaic_divide` | Core forecasting logic |
 | `tile_set.py` | `TileSet` — indexed container for tiles, supports fetch by metric/country/population | |
 | `holiday_smart.py` | `get_calendar` (builds country holiday calendar), `detrend` (kinematic smoother that removes holiday anomalies from historical data) | |
 | `plotting.py` | Visualization helpers | |
-| `__init__.py` | Public surface: `Tile`, `Mozaic`, `TileSet`, `ModelConfig`, `DesktopModelConfig`, `MobileModelConfig`, `make_desktop_model`, `make_mobile_model`, `populate_tiles`, `curate_mozaics`, `mozaic_divide` | |
+| `__init__.py` | Public surface: `Tile`, `Mozaic`, `TileSet`, `ModelConfig`, `DesktopModelConfig`, `MobileModelConfig`, `make_desktop_model`, `make_mobile_model`, `populate_tiles`, `splice_fill`, `curate_mozaics`, `mozaic_divide` | |
 
 ## Where new code goes
 

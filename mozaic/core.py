@@ -66,7 +66,11 @@ class Mozaic:
         )
 
         # set aggregate attribues
-        for i in ["raw_historical_data", "holiday_detrended_historical_data"]:
+        for i in [
+            "raw_historical_data",
+            "fit_historical_data",
+            "holiday_detrended_historical_data",
+        ]:
             y = np.sum(
                 [getattr(tile, i).astype(float).fillna(0.0) for tile in self.tiles],
                 axis=0,
@@ -182,7 +186,7 @@ class Mozaic:
         df = pd.DataFrame(
             {
                 "submission_date": self.historical_dates,
-                "observed": self.raw_historical_data,
+                "observed": self.fit_historical_data,
                 "expected": self.holiday_detrended_historical_data,
             }
         )

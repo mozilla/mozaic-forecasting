@@ -20,6 +20,10 @@ class Tile:
     historical_dates: pd.Series
     raw_historical_data: pd.Series
 
+    # Optional counterfactual history (real outside any gap, synthetic inside). When
+    # set, the model is fit on it instead of raw; raw_historical_data still backs actuals.
+    synthetic_historical_data: pd.Series = field(default=None)
+
     additional_holidays: List[Type[holidays.HolidayBase]] = field(default_factory=list)
     threshold: float = -0.032
     max_radius: int = 5
@@ -39,6 +43,13 @@ class Tile:
             ).year.unique()
         )
 
+        # Data the model is fit on: real raw, or the synthetic counterfactual if supplied
+        self.fit_historical_data = (
+            self.raw_historical_data
+            if self.synthetic_historical_data is None
+            else self.synthetic_historical_data
+        )
+
         self._set_holiday_calendar()
         self._detrend_holidays()
         self._run_forecast()
@@ -54,7 +65,7 @@ class Tile:
     def _detrend_holidays(self):
         self.holiday_detrended_historical_data = detrend(
             dates=self.historical_dates,
-            y=self.raw_historical_data,
+            y=self.fit_historical_data,
             holiday_df=self.holiday_calendar,
             threshold=self.threshold,
             max_radius=self.max_radius,
