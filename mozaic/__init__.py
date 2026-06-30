@@ -1,6 +1,7 @@
 from .tile import Tile
 from .core import Mozaic
 from .tile_set import TileSet
+from . import fills
 from .utils import curate_mozaics, mozaic_divide, populate_tiles, splice_fill
 from .models import (
     ModelConfig,
@@ -18,6 +19,7 @@ __all__ = [
     "mozaic_divide",
     "populate_tiles",
     "splice_fill",
+    "fills",
     "ModelConfig",
     "DesktopModelConfig",
     "MobileModelConfig",

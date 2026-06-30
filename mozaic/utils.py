@@ -5,7 +5,7 @@ import pandas as pd
 from dataclasses import field
 from typing import List, Optional, Type
 
-from mozaic import Mozaic, Tile
+from mozaic import Mozaic, Tile, fills
 
 
 def mozaic_divide(numerator, denominator):
@@ -31,7 +31,7 @@ def mozaic_divide(numerator, denominator):
     return df
 
 
-def splice_fill(datasets: dict, fill: pd.DataFrame, country: str = "IR") -> dict:
+def splice_fill(datasets: dict, fill: pd.DataFrame, country: str = None) -> dict:
     """
     Replace a country's in-window rows with counterfactual fill rows, per metric.
 
@@ -39,39 +39,43 @@ def splice_fill(datasets: dict, fill: pd.DataFrame, country: str = "IR") -> dict
         datasets (dict): metric -> dataframe (columns x, country, segment bools, y).
         fill (pd.DataFrame): long-by-metric fill frame; the same columns plus "metric".
             Each metric's window is taken from its own fill date coverage.
-        country (str): country code whose in-window rows are replaced (default "IR").
+        country (str): country to replace; inferred from the fill when not given.
 
     Returns:
-        dict: a new metric -> dataframe mapping; inputs are not mutated. Metrics absent
-        from the fill, and non-country / out-of-window rows, pass through unchanged.
+        dict: a new metric -> dataframe mapping; inputs are not mutated. A metric absent
+        from the fill -- or from which the country is entirely absent -- passes through
+        unchanged: the fill replaces existing rows, it never injects a missing country.
     """
     if "metric" not in fill.columns:
         raise ValueError("fill is missing a 'metric' column")
-    if not (fill["country"] == country).all():
+    if country is None:
+        countries = fill["country"].unique()
+        if len(countries) != 1:
+            raise ValueError(f"fill spans countries {sorted(countries)}; pass country=")
+        country = countries[0]
+    elif not (fill["country"] == country).all():
         raise ValueError(f"fill contains non-{country} rows")
-    fill_metrics = set(fill["metric"].unique())
-    missing = fill_metrics - set(datasets)
-    if missing:
-        raise ValueError(f"fill metrics absent from datasets: {sorted(missing)}")
 
+    fill_metrics = set(fill["metric"].unique())
     out = {}
     for metric, dataset in datasets.items():
-        if metric not in fill_metrics:
-            out[metric] = dataset.copy(deep=True)
+        df = dataset.copy(deep=True)
+        # Replace existing rows only; never inject a country the dataset lacks
+        if metric not in fill_metrics or not (df["country"] == country).any():
+            out[metric] = df
             continue
 
         fm = fill[fill["metric"] == metric].drop(columns="metric").copy(deep=True)
-        if set(fm.columns) != set(dataset.columns):
+        if set(fm.columns) != set(df.columns):
             raise ValueError(
                 f"{metric}: fill columns {sorted(fm.columns)} "
-                f"!= dataset columns {sorted(dataset.columns)}"
+                f"!= dataset columns {sorted(df.columns)}"
             )
 
         # Window is the fill's own coverage (the fill carries no out-of-window rows)
         fm["x"] = pd.to_datetime(fm["x"])
         lo, hi = fm["x"].min(), fm["x"].max()
 
-        df = dataset.copy(deep=True)
         df["x"] = pd.to_datetime(df["x"])
         is_country = df["country"] == country
         in_window = is_country & df["x"].between(lo, hi)
@@ -79,9 +83,7 @@ def splice_fill(datasets: dict, fill: pd.DataFrame, country: str = "IR") -> dict
             print(f"⚠️  {metric}: no real {country} rows after {hi.date()} to anchor the seam")
 
         # Drop the real in-window rows, append the fill (aligned column order)
-        out[metric] = pd.concat(
-            [df[~in_window], fm[df.columns]], ignore_index=True
-        )
+        out[metric] = pd.concat([df[~in_window], fm[df.columns]], ignore_index=True)
 
     return out
 
@@ -118,8 +120,26 @@ def populate_tiles(
     holiday_threshold: float = -0.032,
     holiday_max_radius: int = 5,
     holiday_min_radius: int = 3,
-    synthetic_datasets: Optional[dict] = None,
+    data_source: Optional[str] = None,
+    additional_fills: Optional[List[pd.DataFrame]] = None,
 ):
+    # Built-in counterfactual gap fills (e.g. the Iran 2026 outage) apply automatically,
+    # like a country's holiday calendar; additional_fills adds caller-supplied ones.
+    # Only consult the registry when a country it covers is actually present, so ordinary
+    # runs stay silent (no work, no ambiguity warning).
+    gap_fills = list(additional_fills or [])
+    registered = fills.registered_fills()
+    present = set().union(*(set(d["country"]) for d in datasets.values()))
+    covered = {c for _, f in registered for c in f["country"].unique()}
+    if present & covered:
+        seg = set(next(iter(datasets.values())).columns) - {"x", "y", "country"}
+        gap_fills = fills.fills_for(seg, data_source=data_source) + gap_fills
+
+    synthetic_datasets = datasets
+    for fill in gap_fills:
+        synthetic_datasets = splice_fill(synthetic_datasets, fill)
+    has_fill = synthetic_datasets is not datasets
+
     for metric, dataset in datasets.items():
         print("\n" + metric)
 
@@ -130,7 +150,7 @@ def populate_tiles(
             populations = [c for c in df.columns if c not in ("x", "country")]
 
             synth = None
-            if synthetic_datasets is not None and metric in synthetic_datasets:
+            if has_fill:
                 synth = _pivot_populations(synthetic_datasets[metric], country)
 
             for population in populations:

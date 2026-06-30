@@ -9,17 +9,19 @@ Core forecasting library. Each module has a single responsibility; see below for
 | `tile.py` | `Tile` dataclass — one (metric, country, population) series. Holiday calendar build, holiday detrend, per-tile Prophet fit | Aggregation, reconciliation |
 | `core.py` | `Mozaic` dataclass — groups tiles, fits aggregate Prophet model, estimates/applies holiday effects, reconciles forecasts | Data loading, tile construction |
 | `models.py` | `ModelConfig` / `DesktopModelConfig` / `MobileModelConfig` dataclasses; `make_desktop_model` / `make_mobile_model` factory fns; `desktop_forecast_model` / `mobile_forecast_model` raw callables | Application-level orchestration |
-| `utils.py` | `populate_tiles` (builds TileSet from datasets; `synthetic_datasets` injects per-tile counterfactual training data), `splice_fill` (swaps a country's in-window rows for counterfactual fill rows), `curate_mozaics` (orchestrates country/population/metric mozaics), `mozaic_divide` | Core forecasting logic |
+| `utils.py` | `populate_tiles` (builds TileSet from datasets; auto-applies built-in gap fills for the given `data_source`, plus any `additional_fills`), `splice_fill` (swaps a country's in-window rows for counterfactual fill rows), `curate_mozaics` (orchestrates country/population/metric mozaics), `mozaic_divide` | Core forecasting logic |
+| `fills/` | Built-in counterfactual gap fills shipped as package data (`iran_2026/*.parquet`) + registry; `registered_fills` / `fills_for` select the fill for a data source. Applied automatically by `populate_tiles` (like a holiday calendar). | The splice logic itself (`utils.splice_fill`) |
 | `tile_set.py` | `TileSet` — indexed container for tiles, supports fetch by metric/country/population | |
 | `holiday_smart.py` | `get_calendar` (builds country holiday calendar), `detrend` (kinematic smoother that removes holiday anomalies from historical data) | |
 | `plotting.py` | Visualization helpers | |
-| `__init__.py` | Public surface: `Tile`, `Mozaic`, `TileSet`, `ModelConfig`, `DesktopModelConfig`, `MobileModelConfig`, `make_desktop_model`, `make_mobile_model`, `populate_tiles`, `splice_fill`, `curate_mozaics`, `mozaic_divide` | |
+| `__init__.py` | Public surface: `Tile`, `Mozaic`, `TileSet`, `ModelConfig`, `DesktopModelConfig`, `MobileModelConfig`, `make_desktop_model`, `make_mobile_model`, `populate_tiles`, `splice_fill`, `fills`, `curate_mozaics`, `mozaic_divide` | |
 
 ## Where new code goes
 
 - **New Prophet model variant**: add to `models.py` alongside `desktop_forecast_model`
 - **New config param**: add field to `ModelConfig` (or a subclass), thread through `make_*_model` closures, forward in `populate_tiles` / `curate_mozaics`
 - **New holiday logic**: `holiday_smart.py` (detrend algorithm) or `core.py` (effect estimation/application)
+- **New counterfactual gap fill** (rare, deliberate): drop the per-data-source parquet under `fills/<gap_id>/` and add a `_REGISTRY` entry in `fills/__init__.py`; `populate_tiles` applies it automatically
 - **New reconciliation strategy**: `core.py` as a `_reconcile_*` method on `Mozaic`
 - **New output format**: `core.py` `to_df` / `to_granular_forecast_df` or a new method
 

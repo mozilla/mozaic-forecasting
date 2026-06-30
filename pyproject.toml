@@ -14,3 +14,8 @@ dependencies = [
     "scipy==1.15.3",
     "tzdata==2025.2",
 ]
+
+# Ship the built-in counterfactual gap fills (parquet) as package data so they are
+# available via importlib.resources in installed wheels, not just editable installs.
+[tool.setuptools.package-data]
+"mozaic.fills" = ["**/*.parquet", "**/*.meta.json"]

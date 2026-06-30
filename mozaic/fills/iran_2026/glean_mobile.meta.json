@@ -1,0 +1,35 @@
+{
+  "producer": "scripts/generate_iran_fill.py",
+  "mozaic_daily_commit": "50c25420d2cbcfecab298502727d5f4aa67beace",
+  "mozaic_commit": "aa407565c3fc7393b3e06ca21345e08c0bc0938f",
+  "forecast_start": "2026-02-28",
+  "forecast_end": "2026-12-31",
+  "fill_end_default": "2026-05-25",
+  "fill_end_by_metric": {
+    "Existing Engagement MAU": "2026-06-21"
+  },
+  "platform": "mobile",
+  "model_config": {
+    "prophet_recent_weeks": 13,
+    "prophet_changepoint_range": 0.82,
+    "prophet_n_changepoints": 25,
+    "holiday_threshold": -0.032,
+    "holiday_max_radius": 5,
+    "holiday_min_radius": 3,
+    "holiday_effect_floor": -0.6,
+    "prophet_changepoint_prior_scale": 0.02
+  },
+  "seam_scale_factors": {
+    "DAU": 1.0,
+    "Existing Engagement DAU": 1.0,
+    "Existing Engagement MAU": 1.0,
+    "New Profiles": 1.0
+  },
+  "weekly_reseasonalized": true,
+  "dow_reference_window": [
+    "2025-09-01",
+    "2026-02-28"
+  ],
+  "dow_granularity": "per-population, pooled-ALL fallback (>=6 clean weeks)",
+  "country": "IR"
+}
