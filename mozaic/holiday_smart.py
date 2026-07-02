@@ -9,6 +9,38 @@ from typing import Optional, List, Type
 
 NO_PASCHAL_CYCLE = ["IN", "JP", "IR", "CN"]
 
+# Per-(country, year) holiday skips. Each entry drops matching rows from the generated
+# calendar for that country-year ONLY, so both detrend() and core's holiday-effect
+# fitting treat the date as an ordinary day. Does not affect the same holiday in any
+# other year or country. Name is matched as a substring of the cleaned, country-prefixed
+# label (e.g. "IR Islamic Revolution Day").
+HOLIDAY_SKIPS = [
+    # IR 2026: the Jan 8-23 blackout, then the Feb 28-May 25 shutdown gap (bridged with
+    # a synthetic counterfactual), disturb detrend's 7/14/21-day lags for months. Every
+    # 2026 IR holiday between the blackout and the healed post-recovery lags either lands
+    # in the polluted window or fires a correction on top of the synthetic fill, in both
+    # cases pushing "expected" well above the real/counterfactual level. Skip them for
+    # 2026 ONLY; every other year keeps its normal holiday correction. Tasua/Ashura (late
+    # June) are past the recovery and correct cleanly, so they are intentionally kept.
+    # Feb no-dip holidays (polluted by the Jan blackout aftermath):
+    ("IR", 2026, "Birthday of Mahdi"),
+    ("IR", 2026, "Islamic Revolution Day"),
+    ("IR", 2026, "Lunar New Year"),
+    ("IR", 2026, "Martyrdom of Imam Ali"),
+    # Holidays inside the Feb 28-May 25 synthetic-fill gap:
+    ("IR", 2026, "Eid al-Fitr"),
+    ("IR", 2026, "Nowruz"),
+    ("IR", 2026, "Islamic Republic Day"),
+    ("IR", 2026, "Nature's Day"),
+    ("IR", 2026, "Martyrdom of Imam Ja'far al-Sadiq"),
+    ("IR", 2026, "Labour Day"),
+    ("IR", 2026, "Whit Monday"),
+    # Post-recovery holidays while the lags are still healing:
+    ("IR", 2026, "Eid al-Adha"),
+    ("IR", 2026, "Death of Imam Khomeini"),
+    ("IR", 2026, "15 Khordad Uprising"),
+]
+
 
 class MozillaHolidays(holidays.HolidayBase):
     """
@@ -386,6 +418,7 @@ def get_calendar(
     exclude_paschal_cycle: list = NO_PASCHAL_CYCLE,
     split_concurrent_holidays: bool = False,
     additional_holidays: Optional[List[Type[holidays.HolidayBase]]] = None,
+    skip_holidays: list = HOLIDAY_SKIPS,
 ) -> pd.DataFrame:
     """
     Generate a cleaned and formatted DataFrame of holidays for a specific country.
@@ -395,6 +428,8 @@ def get_calendar(
         holiday_years (list): List of years to include holidays from.
         exclude_paschal_cycle (list): A list of countries that aren't impacted by the Paschal Cycle.
         split_concurrent_holidays (bool): Whether to split semicolon-delimited holidays into multiple rows.
+        skip_holidays (list): (country, year, name-substring) tuples to drop from the calendar
+            for that country-year only. See HOLIDAY_SKIPS.
 
     Returns:
         pd.DataFrame: A DataFrame with holidays, labeled by date, country, and cleaned holiday name.
@@ -489,6 +524,16 @@ def get_calendar(
     df["holiday"] = df["country"] + " " + df["holiday"]
 
     df["submission_date"] = pd.to_datetime(df["submission_date"])
+
+    # Drop per-(country, year) holiday skips (scoped to this country only)
+    for c, yr, name in skip_holidays:
+        if c == country:
+            df = df[
+                ~(
+                    (df["submission_date"].dt.year == yr)
+                    & df["holiday"].str.contains(name, na=False)
+                )
+            ]
 
     return df.sort_values(by="submission_date").reset_index(drop=True)
 
