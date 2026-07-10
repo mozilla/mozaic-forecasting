@@ -23,6 +23,13 @@ class ModelConfig:
     holiday_max_radius: int = 5
     holiday_min_radius: int = 3
     holiday_effect_floor: float = -0.6
+    # Composite seasonality/growth regime. "auto" keeps each platform's
+    # data-driven switch (desktop: level/volatility correlation; mobile: volume
+    # thresholds). "additive"/"multiplicative" force that seasonality_mode. On
+    # desktop the regime is coupled to growth (additive->logistic,
+    # multiplicative->linear) to stay in the two quadrants the model has run; on
+    # mobile growth stays volume-driven and the regime only sets seasonality_mode.
+    seasonality_regime: str = "auto"
 
     def to_dict(self):
         return dataclasses.asdict(self)
@@ -30,7 +37,7 @@ class ModelConfig:
     def to_slug(self):
         cps = self.prophet_changepoint_prior_scale
         thresh = f"{abs(self.holiday_threshold) * 1000:03.0f}"
-        return (
+        slug = (
             f"cps{cps}"
             f"_thresh{thresh}"
             f"_recent{self.prophet_recent_weeks}"
@@ -39,6 +46,9 @@ class ModelConfig:
             f"_clip{abs(self.holiday_effect_floor)}"
             f"_sps{self.prophet_seasonality_prior_scale}"
         )
+        if self.seasonality_regime != "auto":
+            slug += f"_regime{self.seasonality_regime}"
+        return slug
 
 
 @dataclass
@@ -74,6 +84,7 @@ def make_desktop_model(config: DesktopModelConfig = None):
             changepoint_range=config.prophet_changepoint_range,
             n_changepoints=config.prophet_n_changepoints,
             seasonality_prior_scale=config.prophet_seasonality_prior_scale,
+            seasonality_regime=config.seasonality_regime,
         )
 
     return model
@@ -93,6 +104,7 @@ def make_mobile_model(config: MobileModelConfig = None):
             changepoint_range=config.prophet_changepoint_range,
             n_changepoints=config.prophet_n_changepoints,
             seasonality_prior_scale=config.prophet_seasonality_prior_scale,
+            seasonality_regime=config.seasonality_regime,
         )
 
     return model
@@ -156,7 +168,12 @@ def desktop_forecast_model(
     changepoint_range=0.7,
     n_changepoints=25,
     seasonality_prior_scale=0.00825,
+    seasonality_regime="auto",
 ):
+    assert seasonality_regime in ("auto", "additive", "multiplicative"), (
+        f"seasonality_regime must be auto/additive/multiplicative, "
+        f"got {seasonality_regime!r}"
+    )
     params = {
         "daily_seasonality": False,
         "weekly_seasonality": False,
@@ -171,7 +188,13 @@ def desktop_forecast_model(
 
     x = historical_data
 
-    if (x.abs().corr(x.diff().abs()) or 0) > 0.0:
+    # "auto" keeps the historical level/volatility correlation switch; forcing a
+    # regime pins mode+growth to the matching tested quadrant.
+    corr = x.abs().corr(x.diff().abs()) or 0
+    use_mult = seasonality_regime == "multiplicative" or (
+        seasonality_regime == "auto" and corr > 0.0
+    )
+    if use_mult:
         params["seasonality_mode"] = "multiplicative"
         params["growth"] = "linear"
 
@@ -236,7 +259,12 @@ def mobile_forecast_model(
     changepoint_range=0.82,
     n_changepoints=25,
     seasonality_prior_scale=0.1,
+    seasonality_regime="auto",
 ):
+    assert seasonality_regime in ("auto", "additive", "multiplicative"), (
+        f"seasonality_regime must be auto/additive/multiplicative, "
+        f"got {seasonality_regime!r}"
+    )
     params = {
         "daily_seasonality": False,
         "weekly_seasonality": False,
@@ -252,7 +280,11 @@ def mobile_forecast_model(
         params["changepoint_prior_scale"] = changepoint_prior_scale
         params["growth"] = "linear"
 
-    if historical_data.max() <= 2e6:
+    # "auto" keeps mobile's volume-threshold mode switch; forcing a regime only
+    # sets seasonality_mode (growth stays volume-driven, unlike desktop).
+    if seasonality_regime == "multiplicative" or (
+        seasonality_regime == "auto" and historical_data.max() <= 2e6
+    ):
         params["seasonality_mode"] = "multiplicative"
 
     np.random.seed(42)
