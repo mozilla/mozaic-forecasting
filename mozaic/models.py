@@ -37,12 +37,16 @@ class ModelConfig:
             f"_cpr{self.prophet_changepoint_range}"
             f"_ncp{self.prophet_n_changepoints}"
             f"_clip{abs(self.holiday_effect_floor)}"
+            f"_sps{self.prophet_seasonality_prior_scale}"
         )
 
 
 @dataclass
 class DesktopModelConfig(ModelConfig):
     prophet_changepoint_prior_scale: float = 0.15983
+    # Prophet seasonality_prior_scale. Default matches the value hardcoded in
+    # desktop_forecast_model prior to this knob being exposed (0.00825).
+    prophet_seasonality_prior_scale: float = 0.00825
 
 
 @dataclass
@@ -50,6 +54,10 @@ class MobileModelConfig(ModelConfig):
     # Mobile previously hardcoded changepoint_range=0.82; preserve that default.
     prophet_changepoint_range: float = 0.82
     prophet_changepoint_prior_scale: float = 0.02
+    # Prophet seasonality_prior_scale. Default matches the value hardcoded in
+    # mobile_forecast_model's high-volume branch (0.1). Like today, this only
+    # takes effect when historical_data.max() >= 1e6.
+    prophet_seasonality_prior_scale: float = 0.1
 
 
 def make_desktop_model(config: DesktopModelConfig = None):
@@ -65,6 +73,7 @@ def make_desktop_model(config: DesktopModelConfig = None):
             changepoint_prior_scale=config.prophet_changepoint_prior_scale,
             changepoint_range=config.prophet_changepoint_range,
             n_changepoints=config.prophet_n_changepoints,
+            seasonality_prior_scale=config.prophet_seasonality_prior_scale,
         )
 
     return model
@@ -83,6 +92,7 @@ def make_mobile_model(config: MobileModelConfig = None):
             changepoint_prior_scale=config.prophet_changepoint_prior_scale,
             changepoint_range=config.prophet_changepoint_range,
             n_changepoints=config.prophet_n_changepoints,
+            seasonality_prior_scale=config.prophet_seasonality_prior_scale,
         )
 
     return model
@@ -145,6 +155,7 @@ def desktop_forecast_model(
     changepoint_prior_scale=0.15983,
     changepoint_range=0.7,
     n_changepoints=25,
+    seasonality_prior_scale=0.00825,
 ):
     params = {
         "daily_seasonality": False,
@@ -153,7 +164,7 @@ def desktop_forecast_model(
         "uncertainty_samples": 1000,
         "changepoint_range": changepoint_range,
         "n_changepoints": n_changepoints,
-        "seasonality_prior_scale": 0.00825,
+        "seasonality_prior_scale": seasonality_prior_scale,
         "changepoint_prior_scale": changepoint_prior_scale,
         "growth": "logistic",
     }
@@ -224,6 +235,7 @@ def mobile_forecast_model(
     changepoint_prior_scale=0.02,
     changepoint_range=0.82,
     n_changepoints=25,
+    seasonality_prior_scale=0.1,
 ):
     params = {
         "daily_seasonality": False,
@@ -236,7 +248,7 @@ def mobile_forecast_model(
     }
 
     if historical_data.max() >= 1e6:
-        params["seasonality_prior_scale"] = 0.1
+        params["seasonality_prior_scale"] = seasonality_prior_scale
         params["changepoint_prior_scale"] = changepoint_prior_scale
         params["growth"] = "linear"
 
