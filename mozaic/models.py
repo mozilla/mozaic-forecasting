@@ -44,6 +44,18 @@ class ModelConfig:
         return dataclasses.asdict(self)
 
     def to_slug(self):
+        """Compact label for this config.
+
+        MUST be injective over the config fields. Scan tooling uses the slug as an
+        output directory name, so two configs sharing a slug silently write to the
+        same place and overwrite each other -- which reads as "that parameter has
+        no effect" rather than as an error. ``holiday_max_radius`` and
+        ``holiday_min_radius`` were missing here and did exactly that.
+
+        Fields that were part of the original slug stay unconditional; ones added
+        later are appended only when they differ from their default, so existing
+        output paths keep resolving to the same directory.
+        """
         cps = self.prophet_changepoint_prior_scale
         thresh = f"{abs(self.holiday_threshold) * 1000:03.0f}"
         slug = (
@@ -55,10 +67,14 @@ class ModelConfig:
             f"_clip{abs(self.holiday_effect_floor)}"
             f"_sps{self.prophet_seasonality_prior_scale}"
         )
-        if self.seasonality_regime != "auto":
-            slug += f"_regime{self.seasonality_regime}"
-        if self.seasonality_corr_threshold != 0.0:
-            slug += f"_corr{self.seasonality_corr_threshold}"
+        defaults = {f.name: f.default for f in dataclasses.fields(ModelConfig)}
+        for field, tag in (("seasonality_regime", "regime"),
+                           ("seasonality_corr_threshold", "corr"),
+                           ("holiday_max_radius", "hmaxr"),
+                           ("holiday_min_radius", "hminr")):
+            value = getattr(self, field)
+            if value != defaults[field]:
+                slug += f"_{tag}{value}"
         return slug
 
 
