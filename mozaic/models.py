@@ -30,6 +30,15 @@ class ModelConfig:
     # multiplicative->linear) to stay in the two quadrants the model has run; on
     # mobile growth stays volume-driven and the regime only sets seasonality_mode.
     seasonality_regime: str = "auto"
+    # Threshold on the desktop "auto" switch statistic: a tile goes multiplicative
+    # (and linear-growth) when corr(|y|, |dy|) > this value. 0.0 is the historical
+    # hardcoded behaviour. Because the switch is per tile, this is a *continuous*
+    # dial between all-additive (threshold above every tile's corr, ~+0.5) and
+    # all-multiplicative (below every tile's corr, ~-0.6), passing through the
+    # legacy split at 0.0 -- which "additive"/"multiplicative" cannot express.
+    # Ignored unless seasonality_regime == "auto", and desktop-only (mobile's
+    # switch is volume-driven, not correlation-driven).
+    seasonality_corr_threshold: float = 0.0
 
     def to_dict(self):
         return dataclasses.asdict(self)
@@ -48,6 +57,8 @@ class ModelConfig:
         )
         if self.seasonality_regime != "auto":
             slug += f"_regime{self.seasonality_regime}"
+        if self.seasonality_corr_threshold != 0.0:
+            slug += f"_corr{self.seasonality_corr_threshold}"
         return slug
 
 
@@ -69,6 +80,16 @@ class MobileModelConfig(ModelConfig):
     # takes effect when historical_data.max() >= 1e6.
     prophet_seasonality_prior_scale: float = 0.1
 
+    def __post_init__(self):
+        # Fail loudly rather than silently ignoring it: mobile's regime switch is
+        # volume-driven, so there is no correlation cutoff for this to move.
+        if self.seasonality_corr_threshold != 0.0:
+            raise ValueError(
+                "seasonality_corr_threshold is desktop-only -- mobile's regime "
+                "switch is volume-driven, not correlation-driven. Got "
+                f"{self.seasonality_corr_threshold!r}; leave it at 0.0 for mobile."
+            )
+
 
 def make_desktop_model(config: DesktopModelConfig = None):
     if config is None:
@@ -85,6 +106,7 @@ def make_desktop_model(config: DesktopModelConfig = None):
             n_changepoints=config.prophet_n_changepoints,
             seasonality_prior_scale=config.prophet_seasonality_prior_scale,
             seasonality_regime=config.seasonality_regime,
+            seasonality_corr_threshold=config.seasonality_corr_threshold,
         )
 
     return model
@@ -169,10 +191,15 @@ def desktop_forecast_model(
     n_changepoints=25,
     seasonality_prior_scale=0.00825,
     seasonality_regime="auto",
+    seasonality_corr_threshold=0.0,
 ):
     assert seasonality_regime in ("auto", "additive", "multiplicative"), (
         f"seasonality_regime must be auto/additive/multiplicative, "
         f"got {seasonality_regime!r}"
+    )
+    assert -1.0 <= seasonality_corr_threshold <= 1.0, (
+        f"seasonality_corr_threshold is a correlation cutoff and must lie in "
+        f"[-1, 1], got {seasonality_corr_threshold!r}"
     )
     params = {
         "daily_seasonality": False,
@@ -190,9 +217,14 @@ def desktop_forecast_model(
 
     # "auto" keeps the historical level/volatility correlation switch; forcing a
     # regime pins mode+growth to the matching tested quadrant.
+    # Under "auto", seasonality_corr_threshold moves the cutoff. Tiles are decided
+    # independently, so sweeping it interpolates the *fraction* of tiles that run
+    # multiplicative -- the interior between the two forced regimes. Note the tile
+    # mix is heavily weight-skewed: on 2026-08 desktop, the legacy 0.0 cutoff puts
+    # 37.5% of tiles but only 7.6% of DAU on the multiplicative side.
     corr = x.abs().corr(x.diff().abs()) or 0
     use_mult = seasonality_regime == "multiplicative" or (
-        seasonality_regime == "auto" and corr > 0.0
+        seasonality_regime == "auto" and corr > seasonality_corr_threshold
     )
     if use_mult:
         params["seasonality_mode"] = "multiplicative"
